@@ -1,0 +1,29 @@
+const express = require("express");
+const { body } = require("express-validator");
+const validate = require("../middleware/validate");
+const enrollmentController = require("../controllers/enrollmentController");
+const auth = require("../middleware/auth");
+
+const router = express.Router();
+
+router.post(
+  "/",
+  validate([
+    body("parentName").trim().notEmpty(),
+    body("email").isEmail(),
+    body("phone").trim().notEmpty(),
+    body("relationship").trim().notEmpty(),
+    body("childName").trim().notEmpty(),
+    body("childAge").isInt({ min: 6, max: 18 }),
+    body("gradeLevel").trim().notEmpty(),
+    body("courseId").trim().notEmpty(),
+    body("sessionFormat").trim().notEmpty(),
+    body("agreeTerms").equals("true"),
+  ]),
+  enrollmentController.create
+);
+
+router.get("/", auth, enrollmentController.list);
+router.patch("/:id/status", auth, enrollmentController.updateStatus);
+
+module.exports = router;
