@@ -57,9 +57,6 @@ app.use(
 );
 app.use(express.json());
 
-// Connect to MongoDB
-connectDB();
-
 // Recommend first so POST /api/recommend is never shadowed by other /api routers
 app.post("/api/recommend", recommend);
 
@@ -88,10 +85,18 @@ app.use("/api", (req, res) => {
   });
 });
 
-// Start server
 const PORT = process.env.PORT || 5000;
 const HOST = process.env.HOST || "0.0.0.0";
-app.listen(PORT, HOST, () => {
-  console.log(`Server running on http://${HOST}:${PORT}`);
-  console.log("POST /api/recommend — AI course recommendations");
+
+async function start() {
+  await connectDB();
+  app.listen(PORT, HOST, () => {
+    console.log(`Server running on http://${HOST}:${PORT}`);
+    console.log("POST /api/recommend — AI course recommendations");
+  });
+}
+
+start().catch((err) => {
+  console.error("Failed to start server:", err);
+  process.exit(1);
 });

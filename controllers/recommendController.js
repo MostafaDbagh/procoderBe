@@ -1,4 +1,5 @@
 const Course = require("../models/Course");
+const ensureDefaultCourses = require("../services/ensureDefaultCourses");
 const { coerceGender } = require("../config/childProfileSchema");
 const { evidenceScoringDelta, enrichProfileWithEvidenceContext } = require("../config/evidenceBasedFramework");
 
@@ -1160,10 +1161,13 @@ exports.recommend = async (req, res) => {
   }
 
   try {
-    // Fetch active courses from DB
-    const courses = await Course.find({ isActive: true }).lean();
+    let courses = await Course.find({ isActive: true }).lean();
     if (courses.length === 0) {
-      return res.status(500).json({ error: "No courses available" });
+      await ensureDefaultCourses();
+      courses = await Course.find({ isActive: true }).lean();
+    }
+    if (courses.length === 0) {
+      return res.status(503).json({ error: "No courses available" });
     }
 
     // ── STEP 1: PARSE (gated: sanitize + local NLP + optional structured LLM merge) ──
