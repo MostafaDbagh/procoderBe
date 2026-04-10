@@ -6,8 +6,19 @@ const User = require("./models/User");
 const Enrollment = require("./models/Enrollment");
 const Note = require("./models/Note");
 
+/**
+ * Dev/demo only. Set SEED_DEMO_PASSWORD in .env (min 8 characters). Never commit real passwords.
+ */
 async function seedUsers() {
   try {
+    const demoPassword = process.env.SEED_DEMO_PASSWORD;
+    if (!demoPassword || String(demoPassword).length < 8) {
+      console.error(
+        "Set SEED_DEMO_PASSWORD in .env (min 8 characters) before running seed:users."
+      );
+      process.exit(1);
+    }
+
     await mongoose.connect(process.env.MONGODB_URI);
     console.log("Connected to MongoDB");
 
@@ -21,7 +32,7 @@ async function seedUsers() {
     const parent = await User.create({
       name: "Sarah Ahmed",
       email: "parent@test.com",
-      password: "123456",
+      password: demoPassword,
       phone: "+966501234567",
       role: "parent",
       children: [
@@ -35,7 +46,7 @@ async function seedUsers() {
     const instructor = await User.create({
       name: "Ahmed Noor",
       email: "tutor@test.com",
-      password: "123456",
+      password: demoPassword,
       phone: "+966509876543",
       role: "instructor",
       specialties: ["programming", "algorithms"],
@@ -159,15 +170,11 @@ async function seedUsers() {
     console.log("Created 4 instructor notes");
 
     await mongoose.disconnect();
-    console.log("\n✅ Seed complete!\n");
+    console.log("\nSeed complete.\n");
     console.log("═══════════════════════════════════════");
-    console.log("  PARENT LOGIN:");
-    console.log("    Email:    parent@test.com");
-    console.log("    Password: 123456");
-    console.log("");
-    console.log("  INSTRUCTOR LOGIN:");
-    console.log("    Email:    tutor@test.com");
-    console.log("    Password: 123456");
+    console.log("  PARENT LOGIN:    parent@test.com");
+    console.log("  INSTRUCTOR LOGIN: tutor@test.com");
+    console.log("  (password = value of SEED_DEMO_PASSWORD in .env)");
     console.log("═══════════════════════════════════════\n");
 
     process.exit(0);

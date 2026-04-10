@@ -13,7 +13,7 @@ const userSchema = new mongoose.Schema(
       lowercase: true,
       trim: true,
     },
-    password: { type: String, required: true, minlength: 6 },
+    password: { type: String, required: true, minlength: 6, select: false },
     role: { type: String, enum: ["parent", "student", "instructor", "admin"], default: "parent" },
     // Instructor-specific fields
     specialties: [String],        // e.g. ["programming", "robotics"]

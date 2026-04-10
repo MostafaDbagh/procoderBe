@@ -1,4 +1,5 @@
 const Contact = require("../models/Contact");
+const { sendServerError } = require("../utils/safeErrorResponse");
 
 function escapeRegex(s) {
   return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -11,7 +12,7 @@ exports.submit = async (req, res) => {
       .status(201)
       .json({ message: "Message sent successfully", id: contact._id });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    sendServerError(res, error);
   }
 };
 
@@ -42,7 +43,7 @@ exports.list = async (req, res) => {
     const messages = await Contact.find(filter).sort({ createdAt: -1 });
     res.json(messages);
   } catch (error) {
-    res.status(500).json({ message: "Server error" });
+    sendServerError(res, error);
   }
 };
 
@@ -62,6 +63,6 @@ exports.updateStatus = async (req, res) => {
     }
     res.json(contact);
   } catch (error) {
-    res.status(500).json({ message: "Server error" });
+    sendServerError(res, error);
   }
 };

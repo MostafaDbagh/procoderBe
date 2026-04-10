@@ -2,6 +2,7 @@ const User = require("../models/User");
 const Enrollment = require("../models/Enrollment");
 const Course = require("../models/Course");
 const Note = require("../models/Note");
+const { sendServerError } = require("../utils/safeErrorResponse");
 
 function requireInstructor(req, res) {
   if (req.user.role !== "instructor" && req.user.role !== "admin") {
@@ -86,7 +87,7 @@ exports.dashboard = async (req, res) => {
       },
     });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    sendServerError(res, error);
   }
 };
 
@@ -119,7 +120,7 @@ exports.createNote = async (req, res) => {
 
     res.status(201).json(note);
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    sendServerError(res, error);
   }
 };
 

@@ -2,6 +2,7 @@ const User = require("../models/User");
 const Enrollment = require("../models/Enrollment");
 const Course = require("../models/Course");
 const Note = require("../models/Note");
+const { sendServerError } = require("../utils/safeErrorResponse");
 
 /**
  * GET /api/parent/dashboard
@@ -95,7 +96,7 @@ exports.dashboard = async (req, res) => {
       recommended,
     });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    sendServerError(res, error);
   }
 };
 
@@ -118,7 +119,7 @@ exports.updateChildren = async (req, res) => {
 
     res.json({ children: user.children });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    sendServerError(res, error);
   }
 };
 
@@ -140,6 +141,6 @@ exports.updateProfile = async (req, res) => {
 
     res.json(user);
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    sendServerError(res, error);
   }
 };

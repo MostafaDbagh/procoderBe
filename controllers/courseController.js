@@ -1,4 +1,5 @@
 const Course = require("../models/Course");
+const { sendServerError } = require("../utils/safeErrorResponse");
 
 exports.list = async (req, res) => {
   try {
@@ -13,7 +14,7 @@ exports.list = async (req, res) => {
     const courses = await Course.find(filter).sort({ category: 1, ageMin: 1 });
     res.json(courses);
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    sendServerError(res, error);
   }
 };
 
@@ -31,7 +32,7 @@ exports.listAdmin = async (req, res) => {
     const courses = await Course.find(filter).sort({ category: 1, ageMin: 1 });
     res.json(courses);
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    sendServerError(res, error);
   }
 };
 
@@ -46,7 +47,7 @@ exports.getBySlug = async (req, res) => {
     }
     res.json(course);
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    sendServerError(res, error);
   }
 };
 
@@ -61,7 +62,7 @@ exports.getBySlugAdmin = async (req, res) => {
     }
     res.json(course);
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    sendServerError(res, error);
   }
 };
 
@@ -77,7 +78,7 @@ exports.create = async (req, res) => {
     if (error.code === 11000) {
       return res.status(400).json({ message: "Course slug already exists" });
     }
-    res.status(500).json({ message: "Server error", error: error.message });
+    sendServerError(res, error);
   }
 };
 
@@ -97,7 +98,7 @@ exports.update = async (req, res) => {
     }
     res.json(course);
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    sendServerError(res, error);
   }
 };
 
@@ -117,6 +118,6 @@ exports.remove = async (req, res) => {
     }
     res.json({ message: "Course deactivated" });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    sendServerError(res, error);
   }
 };

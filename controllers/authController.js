@@ -1,5 +1,6 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const { sendServerError } = require("../utils/safeErrorResponse");
 
 const signToken = (user) =>
   jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
@@ -28,7 +29,7 @@ exports.register = async (req, res) => {
 
     res.status(201).json({ token, user: formatUser(user) });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    sendServerError(res, error);
   }
 };
 
@@ -36,7 +37,7 @@ exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email }).select("+password");
     if (!user) {
       return res.status(400).json({ message: "Invalid credentials" });
     }
@@ -49,7 +50,7 @@ exports.login = async (req, res) => {
     const token = signToken(user);
     res.json({ token, user: formatUser(user) });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    sendServerError(res, error);
   }
 };
 
@@ -66,7 +67,7 @@ exports.adminLogin = async (req, res) => {
     const user = await User.findOne({
       email: String(email).toLowerCase().trim(),
       role: "admin",
-    });
+    }).select("+password");
 
     if (!user || !user.username) {
       return res.status(400).json({ message: "Invalid credentials" });
@@ -86,7 +87,7 @@ exports.adminLogin = async (req, res) => {
     const token = signToken(user);
     res.json({ token, user: formatUser(user) });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    sendServerError(res, error);
   }
 };
 
@@ -98,6 +99,6 @@ exports.getMe = async (req, res) => {
     }
     res.json(user);
   } catch (error) {
-    res.status(500).json({ message: "Server error" });
+    sendServerError(res, error);
   }
 };

@@ -1,4 +1,5 @@
 const MonthlyChallenge = require("../models/MonthlyChallenge");
+const { sendServerError } = require("../utils/safeErrorResponse");
 
 function escapeRegex(s) {
   return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -14,7 +15,7 @@ exports.listPublicLatest = async (req, res) => {
     }
     res.json(doc);
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    sendServerError(res, error);
   }
 };
 
@@ -39,7 +40,7 @@ exports.list = async (req, res) => {
       .lean();
     res.json(rows);
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    sendServerError(res, error);
   }
 };
 
@@ -49,7 +50,7 @@ exports.getById = async (req, res) => {
     if (!doc) return res.status(404).json({ message: "Not found" });
     res.json(doc);
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    sendServerError(res, error);
   }
 };
 
@@ -61,7 +62,7 @@ exports.create = async (req, res) => {
     if (error.code === 11000) {
       return res.status(400).json({ message: "Slug already exists" });
     }
-    res.status(500).json({ message: "Server error", error: error.message });
+    sendServerError(res, error);
   }
 };
 
@@ -75,7 +76,7 @@ exports.update = async (req, res) => {
     if (!doc) return res.status(404).json({ message: "Not found" });
     res.json(doc);
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    sendServerError(res, error);
   }
 };
 
@@ -85,6 +86,6 @@ exports.remove = async (req, res) => {
     if (!doc) return res.status(404).json({ message: "Not found" });
     res.json({ message: "Deleted" });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    sendServerError(res, error);
   }
 };

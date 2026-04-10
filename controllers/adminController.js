@@ -4,6 +4,7 @@ const Contact = require("../models/Contact");
 const Course = require("../models/Course");
 const Team = require("../models/Team");
 const MonthlyChallenge = require("../models/MonthlyChallenge");
+const { sendServerError } = require("../utils/safeErrorResponse");
 
 exports.overview = async (req, res) => {
   try {
@@ -73,6 +74,6 @@ exports.overview = async (req, res) => {
       },
     });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    sendServerError(res, error);
   }
 };

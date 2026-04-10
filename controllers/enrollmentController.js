@@ -1,5 +1,6 @@
 const Enrollment = require("../models/Enrollment");
 const Course = require("../models/Course");
+const { sendServerError } = require("../utils/safeErrorResponse");
 
 function escapeRegex(s) {
   return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -17,7 +18,7 @@ exports.create = async (req, res) => {
       enrollment: { id: enrollment._id, status: enrollment.status },
     });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    sendServerError(res, error);
   }
 };
 
@@ -49,7 +50,7 @@ exports.list = async (req, res) => {
     const enrollments = await Enrollment.find(filter).sort({ createdAt: -1 });
     res.json(enrollments);
   } catch (error) {
-    res.status(500).json({ message: "Server error" });
+    sendServerError(res, error);
   }
 };
 
@@ -69,6 +70,6 @@ exports.updateStatus = async (req, res) => {
     }
     res.json(enrollment);
   } catch (error) {
-    res.status(500).json({ message: "Server error" });
+    sendServerError(res, error);
   }
 };

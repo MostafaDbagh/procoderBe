@@ -1,11 +1,12 @@
 const Team = require("../models/Team");
+const { sendServerError } = require("../utils/safeErrorResponse");
 
 exports.list = async (req, res) => {
   try {
     const members = await Team.find({ isActive: true }).sort({ order: 1 });
     res.json(members);
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    sendServerError(res, error);
   }
 };
 
@@ -21,7 +22,7 @@ exports.listAdmin = async (req, res) => {
     const members = await Team.find(filter).sort({ order: 1, createdAt: -1 });
     res.json(members);
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    sendServerError(res, error);
   }
 };
 
@@ -36,7 +37,7 @@ exports.getById = async (req, res) => {
     }
     res.json(member);
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    sendServerError(res, error);
   }
 };
 
@@ -49,7 +50,7 @@ exports.create = async (req, res) => {
     const member = await Team.create(req.body);
     res.status(201).json(member);
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    sendServerError(res, error);
   }
 };
 
@@ -68,7 +69,7 @@ exports.update = async (req, res) => {
     }
     res.json(member);
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    sendServerError(res, error);
   }
 };
 
@@ -88,6 +89,6 @@ exports.remove = async (req, res) => {
     }
     res.json({ message: "Team member deactivated" });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    sendServerError(res, error);
   }
 };
