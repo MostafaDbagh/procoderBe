@@ -17,7 +17,7 @@ exports.quote = async (req, res) => {
     }
 
     const listPrice = Math.round((Number(course.price) || 0) * 100) / 100;
-    const currency = String(course.currency || "USD").toUpperCase();
+    const currency = "USD";
     const courseDiscountPercent = Math.min(
       100,
       Math.max(0, Number(course.discountPercent) || 0)

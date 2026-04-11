@@ -68,7 +68,7 @@ exports.createCheckoutSession = async (req, res) => {
       return res.status(400).json({ message: "Course not found for enrollment" });
     }
 
-    const currency = String(course.currency || "USD").toLowerCase();
+    const currency = "usd";
     const amountMajor =
       enrollment.amountDue != null && Number(enrollment.amountDue) > 0
         ? Number(enrollment.amountDue)
