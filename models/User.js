@@ -14,7 +14,13 @@ const userSchema = new mongoose.Schema(
       trim: true,
     },
     password: { type: String, required: true, minlength: 6, select: false },
-    role: { type: String, enum: ["parent", "student", "instructor", "admin"], default: "parent" },
+    role: {
+      type: String,
+      enum: ["parent", "student", "instructor", "admin"],
+      default: "parent",
+    },
+    /** When false, JWT auth rejects (login also blocked). */
+    isActive: { type: Boolean, default: true },
     // Instructor-specific fields
     specialties: [String],        // e.g. ["programming", "robotics"]
     bio: { type: String },

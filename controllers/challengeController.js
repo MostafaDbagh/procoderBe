@@ -1,5 +1,6 @@
 const MonthlyChallenge = require("../models/MonthlyChallenge");
 const { sendServerError } = require("../utils/safeErrorResponse");
+const { parsePagination, paginationMeta } = require("../utils/pagination");
 
 function escapeRegex(s) {
   return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -35,10 +36,22 @@ exports.list = async (req, res) => {
         { monthKey: rx },
       ];
     }
-    const rows = await MonthlyChallenge.find(filter)
-      .sort({ monthKey: -1, createdAt: -1 })
-      .lean();
-    res.json(rows);
+    const { page, limit, skip } = parsePagination(req.query, {
+      defaultLimit: 15,
+      maxLimit: 100,
+    });
+    const [total, rows] = await Promise.all([
+      MonthlyChallenge.countDocuments(filter),
+      MonthlyChallenge.find(filter)
+        .sort({ monthKey: -1, createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+    ]);
+    res.json({
+      items: rows,
+      ...paginationMeta(total, page, limit),
+    });
   } catch (error) {
     sendServerError(res, error);
   }

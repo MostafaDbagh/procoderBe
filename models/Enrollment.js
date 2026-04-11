@@ -9,6 +9,8 @@ const enrollmentSchema = new mongoose.Schema(
     relationship: { type: String, required: true },
     // Child info
     childName: { type: String, required: true },
+    /** Optional disambiguator when two siblings share the same name (e.g. national ID, nickname). */
+    childStudentId: { type: String, trim: true, default: "" },
     childAge: { type: Number, required: true },
     childGender: String,
     gradeLevel: { type: String, required: true },
@@ -35,8 +37,33 @@ const enrollmentSchema = new mongoose.Schema(
       default: "pending",
     },
     user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    /** Pricing snapshot at enrollment (list = catalog before course discount). */
+    listPrice: { type: Number, default: null },
+    currency: { type: String, default: null },
+    courseDiscountPercent: { type: Number, default: null },
+    priceAfterCourseDiscount: { type: Number, default: null },
+    promoCodeApplied: { type: String, default: null, uppercase: true, trim: true },
+    promoDiscountAmount: { type: Number, default: null },
+    amountDue: { type: Number, default: null },
   },
   { timestamps: true }
+);
+
+enrollmentSchema.pre("validate", function () {
+  if (this.childStudentId == null || this.childStudentId === undefined) {
+    this.childStudentId = "";
+  }
+});
+
+// One non-cancelled enrollment per course + parent email + child identity
+enrollmentSchema.index(
+  { courseId: 1, email: 1, childName: 1, childStudentId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      status: { $in: ["pending", "confirmed", "active", "completed"] },
+    },
+  }
 );
 
 module.exports = mongoose.model("Enrollment", enrollmentSchema);

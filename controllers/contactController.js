@@ -1,5 +1,6 @@
 const Contact = require("../models/Contact");
 const { sendServerError } = require("../utils/safeErrorResponse");
+const { parsePagination, paginationMeta } = require("../utils/pagination");
 
 function escapeRegex(s) {
   return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -40,8 +41,22 @@ exports.list = async (req, res) => {
       if (to) filter.createdAt.$lte = new Date(to);
     }
 
-    const messages = await Contact.find(filter).sort({ createdAt: -1 });
-    res.json(messages);
+    const { page, limit, skip } = parsePagination(req.query, {
+      defaultLimit: 15,
+      maxLimit: 100,
+    });
+    const [total, messages] = await Promise.all([
+      Contact.countDocuments(filter),
+      Contact.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+    ]);
+    res.json({
+      items: messages,
+      ...paginationMeta(total, page, limit),
+    });
   } catch (error) {
     sendServerError(res, error);
   }

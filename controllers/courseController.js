@@ -1,5 +1,6 @@
 const Course = require("../models/Course");
 const { sendServerError } = require("../utils/safeErrorResponse");
+const { parsePagination, paginationMeta } = require("../utils/pagination");
 
 exports.list = async (req, res) => {
   try {
@@ -29,8 +30,22 @@ exports.listAdmin = async (req, res) => {
     if (level) filter.level = level;
     if (active === "true") filter.isActive = true;
     if (active === "false") filter.isActive = false;
-    const courses = await Course.find(filter).sort({ category: 1, ageMin: 1 });
-    res.json(courses);
+    const { page, limit, skip } = parsePagination(req.query, {
+      defaultLimit: 15,
+      maxLimit: 100,
+    });
+    const [total, courses] = await Promise.all([
+      Course.countDocuments(filter),
+      Course.find(filter)
+        .sort({ category: 1, ageMin: 1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+    ]);
+    res.json({
+      items: courses,
+      ...paginationMeta(total, page, limit),
+    });
   } catch (error) {
     sendServerError(res, error);
   }
@@ -72,7 +87,7 @@ exports.create = async (req, res) => {
   }
 
   try {
-    const course = await Course.create(req.body);
+    const course = await Course.create({ ...req.body, currency: "USD" });
     res.status(201).json(course);
   } catch (error) {
     if (error.code === 11000) {
@@ -90,7 +105,7 @@ exports.update = async (req, res) => {
   try {
     const course = await Course.findOneAndUpdate(
       { slug: req.params.slug },
-      req.body,
+      { ...req.body, currency: "USD" },
       { new: true, runValidators: true }
     );
     if (!course) {

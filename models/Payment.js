@@ -1,0 +1,43 @@
+const mongoose = require("mongoose");
+
+const paymentSchema = new mongoose.Schema(
+  {
+    enrollment: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Enrollment",
+      required: true,
+      index: true,
+    },
+    amountCents: { type: Number, required: true },
+    currency: {
+      type: String,
+      required: true,
+      uppercase: true,
+      default: "USD",
+    },
+    status: {
+      type: String,
+      enum: [
+        "pending",
+        "processing",
+        "succeeded",
+        "failed",
+        "refunded",
+        "partially_refunded",
+      ],
+      default: "pending",
+    },
+    stripePaymentIntentId: { type: String, sparse: true, unique: true },
+    stripeCheckoutSessionId: { type: String, sparse: true, unique: true },
+    stripeCustomerId: String,
+    description: String,
+    refundedCents: { type: Number, default: 0 },
+    metadata: mongoose.Schema.Types.Mixed,
+  },
+  { timestamps: true }
+);
+
+paymentSchema.index({ createdAt: -1 });
+paymentSchema.index({ status: 1, currency: 1 });
+
+module.exports = mongoose.model("Payment", paymentSchema);

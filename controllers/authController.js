@@ -41,6 +41,9 @@ exports.login = async (req, res) => {
     if (!user) {
       return res.status(400).json({ message: "Invalid credentials" });
     }
+    if (user.isActive === false) {
+      return res.status(403).json({ message: "Account deactivated" });
+    }
 
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
@@ -71,6 +74,9 @@ exports.adminLogin = async (req, res) => {
 
     if (!user || !user.username) {
       return res.status(400).json({ message: "Invalid credentials" });
+    }
+    if (user.isActive === false) {
+      return res.status(403).json({ message: "Account deactivated" });
     }
 
     if (

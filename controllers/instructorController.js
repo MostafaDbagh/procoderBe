@@ -12,6 +12,14 @@ function requireInstructor(req, res) {
   return true;
 }
 
+/** Course slugs this user may teach: explicit Course.instructorId + legacy User.assignedCourses. */
+async function getInstructorCourseSlugs(userId, assignedCourses) {
+  const fromUser = Array.isArray(assignedCourses) ? assignedCourses : [];
+  const courses = await Course.find({ instructorId: userId, isActive: true }).select("slug");
+  const fromDoc = courses.map((c) => c.slug);
+  return [...new Set([...fromUser, ...fromDoc])];
+}
+
 /**
  * GET /api/instructor/dashboard
  * Returns instructor profile, assigned courses, students enrolled in those courses.
@@ -23,8 +31,7 @@ exports.dashboard = async (req, res) => {
     const user = await User.findById(req.user.id).select("-password");
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    // Get courses this instructor teaches
-    const assignedSlugs = user.assignedCourses || [];
+    const assignedSlugs = await getInstructorCourseSlugs(user._id, user.assignedCourses);
     const courses = await Course.find({ slug: { $in: assignedSlugs }, isActive: true });
 
     // Get all enrollments for those courses (active/confirmed)
@@ -104,7 +111,17 @@ exports.createNote = async (req, res) => {
     const enrollment = await Enrollment.findById(enrollmentId);
     if (!enrollment) return res.status(404).json({ message: "Enrollment not found" });
 
-    const instructor = await User.findById(req.user.id).select("name");
+    const instructorUser = await User.findById(req.user.id).select("name assignedCourses");
+    if (!instructorUser) return res.status(404).json({ message: "User not found" });
+
+    if (req.user.role !== "admin") {
+      const allowedSlugs = await getInstructorCourseSlugs(req.user.id, instructorUser.assignedCourses);
+      if (!allowedSlugs.includes(enrollment.courseId)) {
+        return res.status(403).json({ message: "You can only add notes for students in your courses" });
+      }
+    }
+
+    const instructor = instructorUser;
 
     const note = await Note.create({
       instructor: req.user.id,

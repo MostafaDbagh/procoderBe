@@ -1,4 +1,5 @@
 /** Canonical course catalog: used by seed script and auto-bootstrap when DB has no active courses. */
+/** List prices in USD ($); change in admin anytime. */
 module.exports = [
   {
     slug: "scratch",
@@ -19,6 +20,8 @@ module.exports = [
       en: ["Block-based coding", "Logic & sequencing", "Creative storytelling", "Problem solving"],
       ar: ["البرمجة بالكتل", "المنطق والتسلسل", "السرد الإبداعي", "حل المشكلات"],
     },
+    price: 299,
+    currency: "USD",
   },
   {
     slug: "python",
@@ -39,6 +42,8 @@ module.exports = [
       en: ["Python syntax", "Variables & loops", "Functions", "Simple games"],
       ar: ["صياغة بايثون", "المتغيرات والحلقات", "الدوال", "ألعاب بسيطة"],
     },
+    price: 399,
+    currency: "USD",
   },
   {
     slug: "webdev",
@@ -59,6 +64,8 @@ module.exports = [
       en: ["HTML & CSS", "JavaScript", "Responsive design", "Web apps"],
       ar: ["HTML و CSS", "جافاسكريبت", "التصميم المتجاوب", "تطبيقات الويب"],
     },
+    price: 599,
+    currency: "USD",
   },
   {
     slug: "robot-basics",
@@ -79,6 +86,8 @@ module.exports = [
       en: ["Robot assembly", "Sensor basics", "Simple programming", "Engineering thinking"],
       ar: ["تجميع الروبوتات", "أساسيات المستشعرات", "البرمجة البسيطة", "التفكير الهندسي"],
     },
+    price: 349,
+    currency: "USD",
   },
   {
     slug: "robot-advanced",
@@ -99,6 +108,8 @@ module.exports = [
       en: ["Advanced sensors", "Autonomous navigation", "AI basics", "Competition prep"],
       ar: ["مستشعرات متقدمة", "التنقل الذاتي", "أساسيات الذكاء الاصطناعي", "التحضير للمسابقات"],
     },
+    price: 649,
+    currency: "USD",
   },
   {
     slug: "algo-intro",
@@ -119,6 +130,8 @@ module.exports = [
       en: ["Sorting algorithms", "Search techniques", "Pattern recognition", "Logical reasoning"],
       ar: ["خوارزميات الفرز", "تقنيات البحث", "التعرف على الأنماط", "التفكير المنطقي"],
     },
+    price: 389,
+    currency: "USD",
   },
   {
     slug: "algo-competitive",
@@ -139,6 +152,8 @@ module.exports = [
       en: ["Data structures", "Dynamic programming", "Graph algorithms", "Contest strategies"],
       ar: ["هياكل البيانات", "البرمجة الديناميكية", "خوارزميات الرسم البياني", "استراتيجيات المنافسة"],
     },
+    price: 799,
+    currency: "USD",
   },
   {
     slug: "arabic-reading",
@@ -159,6 +174,8 @@ module.exports = [
       en: ["Letter recognition", "Basic vocabulary", "Simple sentences", "Handwriting"],
       ar: ["التعرف على الحروف", "المفردات الأساسية", "الجمل البسيطة", "الخط اليدوي"],
     },
+    price: 279,
+    currency: "USD",
   },
   {
     slug: "arabic-grammar",
@@ -179,6 +196,8 @@ module.exports = [
       en: ["Grammar rules", "Verb conjugation", "Composition", "Reading comprehension"],
       ar: ["القواعد النحوية", "تصريف الأفعال", "التعبير الكتابي", "فهم المقروء"],
     },
+    price: 439,
+    currency: "USD",
   },
   {
     slug: "quran-recitation",
@@ -199,6 +218,8 @@ module.exports = [
       en: ["Tajweed rules", "Proper pronunciation", "Verse recognition", "Listening skills"],
       ar: ["أحكام التجويد", "النطق الصحيح", "التعرف على الآيات", "مهارات الاستماع"],
     },
+    price: 329,
+    currency: "USD",
   },
   {
     slug: "quran-memorization",
@@ -219,6 +240,8 @@ module.exports = [
       en: ["Memorization techniques", "Revision methods", "Deep understanding", "Daily practice"],
       ar: ["تقنيات الحفظ", "أساليب المراجعة", "الفهم العميق", "الممارسة اليومية"],
     },
+    price: 649,
+    currency: "USD",
   },
   {
     slug: "gamedev",
@@ -239,5 +262,7 @@ module.exports = [
       en: ["Game design", "2D graphics", "Game physics", "Publishing"],
       ar: ["تصميم الألعاب", "رسوميات ثنائية الأبعاد", "فيزياء الألعاب", "النشر"],
     },
+    price: 499,
+    currency: "USD",
   },
 ];

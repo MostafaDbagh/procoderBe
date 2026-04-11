@@ -4,6 +4,22 @@ const Course = require("../models/Course");
 const Note = require("../models/Note");
 const { sendServerError } = require("../utils/safeErrorResponse");
 
+const PARENT_PORTAL_ROLES = ["parent", "student"];
+const PARENT_PORTAL_FORBIDDEN =
+  "This area is for parents and students. Instructors and admins should use the instructor portal.";
+
+function assertParentPortalUser(user, res) {
+  if (!user) {
+    res.status(404).json({ message: "User not found" });
+    return false;
+  }
+  if (!PARENT_PORTAL_ROLES.includes(user.role)) {
+    res.status(403).json({ message: PARENT_PORTAL_FORBIDDEN });
+    return false;
+  }
+  return true;
+}
+
 /**
  * GET /api/parent/dashboard
  * Returns full parent dashboard data: profile, children, enrollments with course info, stats.
@@ -11,7 +27,7 @@ const { sendServerError } = require("../utils/safeErrorResponse");
 exports.dashboard = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select("-password");
-    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!assertParentPortalUser(user, res)) return;
 
     // Get all enrollments for this parent
     const enrollments = await Enrollment.find({ email: user.email }).sort({ createdAt: -1 });
@@ -111,6 +127,9 @@ exports.updateChildren = async (req, res) => {
       return res.status(400).json({ message: "children must be an array" });
     }
 
+    const existing = await User.findById(req.user.id).select("-password");
+    if (!assertParentPortalUser(existing, res)) return;
+
     const user = await User.findByIdAndUpdate(
       req.user.id,
       { children },
@@ -133,6 +152,9 @@ exports.updateProfile = async (req, res) => {
     const update = {};
     if (name) update.name = name;
     if (phone) update.phone = phone;
+
+    const existing = await User.findById(req.user.id).select("-password");
+    if (!assertParentPortalUser(existing, res)) return;
 
     const user = await User.findByIdAndUpdate(req.user.id, update, {
       new: true,

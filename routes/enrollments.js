@@ -19,6 +19,7 @@ router.post(
     body("courseId").trim().notEmpty(),
     body("sessionFormat").trim().notEmpty(),
     body("agreeTerms").equals("true"),
+    body("promoCode").optional().trim(),
   ]),
   enrollmentController.create
 );

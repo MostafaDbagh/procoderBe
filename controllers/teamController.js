@@ -1,5 +1,6 @@
 const Team = require("../models/Team");
 const { sendServerError } = require("../utils/safeErrorResponse");
+const { parsePagination, paginationMeta } = require("../utils/pagination");
 
 exports.list = async (req, res) => {
   try {
@@ -11,16 +12,27 @@ exports.list = async (req, res) => {
 };
 
 exports.listAdmin = async (req, res) => {
-  if (req.user.role !== "admin") {
-    return res.status(403).json({ message: "Admin access required" });
-  }
   try {
     const { active } = req.query;
     const filter = {};
     if (active === "true") filter.isActive = true;
     if (active === "false") filter.isActive = false;
-    const members = await Team.find(filter).sort({ order: 1, createdAt: -1 });
-    res.json(members);
+    const { page, limit, skip } = parsePagination(req.query, {
+      defaultLimit: 15,
+      maxLimit: 100,
+    });
+    const [total, members] = await Promise.all([
+      Team.countDocuments(filter),
+      Team.find(filter)
+        .sort({ order: 1, createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+    ]);
+    res.json({
+      items: members,
+      ...paginationMeta(total, page, limit),
+    });
   } catch (error) {
     sendServerError(res, error);
   }
