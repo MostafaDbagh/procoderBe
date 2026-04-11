@@ -1,9 +1,9 @@
 const { cloudinary, isCloudinaryConfigured } = require("../config/cloudinary");
 
 /**
- * Remove a team member image from Cloudinary (by public_id).
+ * Remove an image from Cloudinary (by public_id). Used for team + course assets.
  */
-async function destroyTeamMemberPhoto(publicId) {
+async function destroyCloudinaryImage(publicId) {
   const id = String(publicId || "").trim();
   if (!id || !isCloudinaryConfigured()) return;
   try {
@@ -13,8 +13,12 @@ async function destroyTeamMemberPhoto(publicId) {
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    console.warn("[team] Cloudinary destroy failed:", id, msg);
+    console.warn("[cloudinary] destroy failed:", id, msg);
   }
 }
 
-module.exports = { destroyTeamMemberPhoto };
+module.exports = {
+  destroyCloudinaryImage,
+  /** @deprecated use destroyCloudinaryImage */
+  destroyTeamMemberPhoto: destroyCloudinaryImage,
+};

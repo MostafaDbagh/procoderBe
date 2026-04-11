@@ -22,6 +22,10 @@ const courseSchema = new mongoose.Schema(
     durationWeeks: { type: Number, required: true },
     iconName: { type: String, default: "BookOpen" },
     color: { type: String, default: "from-blue-400 to-cyan-400" },
+    /** Cover image: Cloudinary HTTPS URL or local `/uploads/courses/...`. */
+    imageUrl: { type: String, default: "" },
+    /** Cloudinary public_id (folder `courses/...`); for replace/delete. */
+    imagePublicId: { type: String, default: "" },
     title: {
       en: { type: String, required: true },
       ar: { type: String, required: true },

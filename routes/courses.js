@@ -3,6 +3,10 @@ const { body } = require("express-validator");
 const validate = require("../middleware/validate");
 const courseController = require("../controllers/courseController");
 const auth = require("../middleware/auth");
+const adminOnly = require("../middleware/adminOnly");
+const {
+  courseImageUploadMiddleware,
+} = require("../middleware/courseImageUpload");
 const Category = require("../models/Category");
 
 const router = express.Router();
@@ -20,6 +24,26 @@ async function categoryMustBeActive(value) {
 
 router.get("/admin/list", auth, courseController.listAdmin);
 router.get("/admin/by-slug/:slug", auth, courseController.getBySlugAdmin);
+
+router.post(
+  "/upload",
+  auth,
+  adminOnly,
+  (req, res, next) => {
+    courseImageUploadMiddleware(req, res, (err) => {
+      if (err) {
+        const msg =
+          err.code === "LIMIT_FILE_SIZE"
+            ? "File too large (max 2MB)"
+            : err.message || "Upload failed";
+        return res.status(400).json({ message: msg });
+      }
+      next();
+    });
+  },
+  courseController.uploadCourseImage
+);
+
 router.get("/", courseController.list);
 router.get("/:slug", courseController.getBySlug);
 

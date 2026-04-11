@@ -18,10 +18,6 @@ exports.submit = async (req, res) => {
 };
 
 exports.list = async (req, res) => {
-  if (req.user.role !== "admin") {
-    return res.status(403).json({ message: "Admin access required" });
-  }
-
   try {
     const { status, q, subject, challengeOnly, from, to } = req.query;
     const filter = {};
@@ -63,10 +59,6 @@ exports.list = async (req, res) => {
 };
 
 exports.updateStatus = async (req, res) => {
-  if (req.user.role !== "admin") {
-    return res.status(403).json({ message: "Admin access required" });
-  }
-
   try {
     const contact = await Contact.findByIdAndUpdate(
       req.params.id,
@@ -77,6 +69,18 @@ exports.updateStatus = async (req, res) => {
       return res.status(404).json({ message: "Not found" });
     }
     res.json(contact);
+  } catch (error) {
+    sendServerError(res, error);
+  }
+};
+
+exports.remove = async (req, res) => {
+  try {
+    const deleted = await Contact.findByIdAndDelete(req.params.id);
+    if (!deleted) {
+      return res.status(404).json({ message: "Not found" });
+    }
+    res.json({ message: "Deleted" });
   } catch (error) {
     sendServerError(res, error);
   }

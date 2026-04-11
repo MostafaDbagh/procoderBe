@@ -1,6 +1,27 @@
 const Course = require("../models/Course");
 const { sendServerError } = require("../utils/safeErrorResponse");
 const { parsePagination, paginationMeta } = require("../utils/pagination");
+const { destroyCloudinaryImage } = require("../utils/teamPhotoCloudinary");
+const { uploadUsesCloudinary } = require("../middleware/courseImageUpload");
+
+exports.uploadCourseImage = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res
+        .status(400)
+        .json({ message: "No image file (use field name photo)" });
+    }
+    if (uploadUsesCloudinary()) {
+      const photoUrl = req.file.path;
+      const photoPublicId = req.file.filename;
+      return res.status(201).json({ photoUrl, photoPublicId });
+    }
+    const photoUrl = `/uploads/courses/${req.file.filename}`;
+    res.status(201).json({ photoUrl, photoPublicId: "" });
+  } catch (error) {
+    sendServerError(res, error);
+  }
+};
 
 exports.list = async (req, res) => {
   try {
@@ -103,6 +124,39 @@ exports.update = async (req, res) => {
   }
 
   try {
+    const existing = await Course.findOne({ slug: req.params.slug });
+    if (!existing) {
+      return res.status(404).json({ message: "Course not found" });
+    }
+
+    const oldPid = String(existing.imagePublicId || "").trim();
+    if (oldPid) {
+      const urlCleared =
+        Object.prototype.hasOwnProperty.call(req.body, "imageUrl") &&
+        String(req.body.imageUrl || "").trim() === "";
+      const newPidRaw = Object.prototype.hasOwnProperty.call(
+        req.body,
+        "imagePublicId"
+      )
+        ? String(req.body.imagePublicId || "").trim()
+        : null;
+
+      if (urlCleared) {
+        await destroyCloudinaryImage(oldPid);
+      } else if (newPidRaw !== null && newPidRaw !== oldPid && newPidRaw) {
+        await destroyCloudinaryImage(oldPid);
+      } else if (
+        newPidRaw !== null &&
+        newPidRaw === "" &&
+        Object.prototype.hasOwnProperty.call(req.body, "imageUrl")
+      ) {
+        const u = String(req.body.imageUrl || "").trim();
+        if (u && !u.includes("res.cloudinary.com")) {
+          await destroyCloudinaryImage(oldPid);
+        }
+      }
+    }
+
     const course = await Course.findOneAndUpdate(
       { slug: req.params.slug },
       { ...req.body, currency: "USD" },
@@ -123,9 +177,16 @@ exports.remove = async (req, res) => {
   }
 
   try {
+    const existing = await Course.findOne({ slug: req.params.slug });
+    if (!existing) {
+      return res.status(404).json({ message: "Course not found" });
+    }
+    if (existing.imagePublicId) {
+      await destroyCloudinaryImage(existing.imagePublicId);
+    }
     const course = await Course.findOneAndUpdate(
       { slug: req.params.slug },
-      { isActive: false },
+      { isActive: false, imageUrl: "", imagePublicId: "" },
       { new: true }
     );
     if (!course) {

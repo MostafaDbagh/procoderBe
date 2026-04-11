@@ -3,6 +3,7 @@ const { body } = require("express-validator");
 const validate = require("../middleware/validate");
 const contactController = require("../controllers/contactController");
 const auth = require("../middleware/auth");
+const adminOnly = require("../middleware/adminOnly");
 
 const router = express.Router();
 
@@ -17,11 +18,12 @@ router.post(
   contactController.submit
 );
 
-router.get("/", auth, contactController.list);
+router.get("/", auth, adminOnly, contactController.list);
 
 router.patch(
   "/:id",
   auth,
+  adminOnly,
   validate([
     body("status")
       .isIn(["new", "read", "replied"])
@@ -29,5 +31,7 @@ router.patch(
   ]),
   contactController.updateStatus
 );
+
+router.delete("/:id", auth, adminOnly, contactController.remove);
 
 module.exports = router;
