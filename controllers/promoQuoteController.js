@@ -1,12 +1,12 @@
 const Course = require("../models/Course");
-const { priceAfterCourseDiscount } = require("../utils/pricing");
-const { validatePromoForCourse, applyPromoToAmount } = require("../services/promoApply");
+const { buildPricingForCourse } = require("../services/enrollmentPricing");
 const { sendServerError } = require("../utils/safeErrorResponse");
 
 exports.quote = async (req, res) => {
   try {
     const courseId = String(req.body.courseId || "").trim();
     const promoCode = String(req.body.promoCode || "").trim();
+    const parentEmail = String(req.body.parentEmail || "").trim();
     if (!courseId) {
       return res.status(400).json({ message: "courseId is required" });
     }
@@ -16,50 +16,25 @@ exports.quote = async (req, res) => {
       return res.status(404).json({ message: "Course not found" });
     }
 
-    const listPrice = Math.round((Number(course.price) || 0) * 100) / 100;
-    const currency = "USD";
-    const courseDiscountPercent = Math.min(
-      100,
-      Math.max(0, Number(course.discountPercent) || 0)
-    );
-    const afterCourse = priceAfterCourseDiscount(course);
-
-    let promoError = null;
-    let promoApplied = null;
-    let promoDiscountAmount = 0;
-    let amountDue = afterCourse;
-
-    if (promoCode) {
-      const v = await validatePromoForCourse(promoCode, course);
-      if (v.error) {
-        promoError = v.error;
-      } else if (v.doc) {
-        const ap = applyPromoToAmount(afterCourse, v.doc, currency);
-        if (ap.error) {
-          promoError = ap.error;
-        } else {
-          amountDue = ap.afterPromo;
-          promoDiscountAmount = ap.promoSaved;
-          promoApplied = {
-            code: v.doc.code,
-            discountType: v.doc.discountType,
-            discountValue: v.doc.discountValue,
-          };
-        }
-      }
-    }
+    const p = await buildPricingForCourse(course, {
+      parentEmail: parentEmail || undefined,
+      promoCodeRaw: promoCode,
+    });
 
     res.json({
       courseId: course.slug,
-      currency,
-      listPrice,
-      courseDiscountPercent,
-      priceAfterCourseDiscount: afterCourse,
-      promoCode: promoCode ? promoCode.toUpperCase() : null,
-      promoError,
-      promoApplied,
-      promoDiscountAmount,
-      amountDue,
+      currency: p.currency,
+      listPrice: p.listPrice,
+      courseDiscountPercent: p.courseDiscountPercent,
+      priceAfterCourseDiscount: p.priceAfterCourseDiscount,
+      firstTimeParentDiscountPercent: p.firstTimeParentDiscountPercent,
+      firstTimeParentDiscountAmount: p.firstTimeParentDiscountAmount,
+      priceAfterFirstTimeDiscount: p.priceAfterFirstTimeDiscount,
+      promoCode: p.promoCodeNormalized,
+      promoError: p.promoError,
+      promoApplied: p.promoApplied,
+      promoDiscountAmount: p.promoDiscountAmount,
+      amountDue: p.amountDue,
     });
   } catch (e) {
     sendServerError(res, e);

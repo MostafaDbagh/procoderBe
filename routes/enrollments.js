@@ -1,8 +1,9 @@
 const express = require("express");
-const { body } = require("express-validator");
+const { body, param } = require("express-validator");
 const validate = require("../middleware/validate");
 const enrollmentController = require("../controllers/enrollmentController");
 const auth = require("../middleware/auth");
+const adminOnly = require("../middleware/adminOnly");
 
 const router = express.Router();
 
@@ -26,5 +27,15 @@ router.post(
 
 router.get("/", auth, enrollmentController.list);
 router.patch("/:id/status", auth, enrollmentController.updateStatus);
+router.patch(
+  "/:id/payment-status",
+  auth,
+  adminOnly,
+  validate([
+    param("id").isMongoId(),
+    body("paymentStatus").isIn(["none", "paid", "half", "deposit_15"]),
+  ]),
+  enrollmentController.updatePaymentStatus
+);
 
 module.exports = router;

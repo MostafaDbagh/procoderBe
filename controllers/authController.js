@@ -1,6 +1,12 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const { sendServerError } = require("../utils/safeErrorResponse");
+const Enrollment = require("../models/Enrollment");
+const {
+  hasMatchingEnrollmentForParentSignup,
+  findMatchingEnrollmentsForParentSignup,
+  summarizeChildrenForSignupResponse,
+} = require("../utils/parentEnrollmentEligibility");
 
 const signToken = (user) =>
   jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
@@ -15,6 +21,24 @@ const formatUser = (user) => ({
   role: user.role,
 });
 
+exports.checkParentSignupEligibility = async (req, res) => {
+  try {
+    const { name, email, phone } = req.body;
+    const matches = await findMatchingEnrollmentsForParentSignup(
+      email,
+      name,
+      phone
+    );
+    const eligible = matches.length > 0;
+    const children = eligible
+      ? summarizeChildrenForSignupResponse(matches)
+      : [];
+    res.json({ eligible, children });
+  } catch (error) {
+    sendServerError(res, error);
+  }
+};
+
 exports.register = async (req, res) => {
   try {
     const { name, email, password, phone } = req.body;
@@ -24,7 +48,32 @@ exports.register = async (req, res) => {
       return res.status(400).json({ message: "Email already registered" });
     }
 
+    const eligible = await hasMatchingEnrollmentForParentSignup(
+      email,
+      name,
+      phone
+    );
+    if (!eligible) {
+      return res.status(400).json({
+        message:
+          "No enrollment matches this name with the email or phone you entered. Use the same details as on your child’s enrollment, or enroll in a course first.",
+      });
+    }
+
     const user = await User.create({ name, email, password, phone });
+
+    const linked = await findMatchingEnrollmentsForParentSignup(
+      email,
+      name,
+      phone
+    );
+    if (linked.length > 0) {
+      await Enrollment.updateMany(
+        { _id: { $in: linked.map((r) => r._id) } },
+        { $set: { user: user._id } }
+      );
+    }
+
     const token = signToken(user);
 
     res.status(201).json({ token, user: formatUser(user) });

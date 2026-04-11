@@ -36,12 +36,22 @@ const enrollmentSchema = new mongoose.Schema(
       enum: ["pending", "confirmed", "active", "completed", "cancelled"],
       default: "pending",
     },
+    /** Admin-tracked payment progress (manual; not synced from Stripe automatically). */
+    paymentStatus: {
+      type: String,
+      enum: ["none", "paid", "half", "deposit_15"],
+      default: "none",
+    },
     user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     /** Pricing snapshot at enrollment (list = catalog before course discount). */
     listPrice: { type: Number, default: null },
     currency: { type: String, default: null },
     courseDiscountPercent: { type: Number, default: null },
     priceAfterCourseDiscount: { type: Number, default: null },
+    /** One-time first-enrollment discount for this parent email (after course discount, before promo). */
+    firstTimeParentDiscountPercent: { type: Number, default: null },
+    firstTimeParentDiscountAmount: { type: Number, default: null },
+    priceAfterFirstTimeDiscount: { type: Number, default: null },
     promoCodeApplied: { type: String, default: null, uppercase: true, trim: true },
     promoDiscountAmount: { type: Number, default: null },
     amountDue: { type: Number, default: null },

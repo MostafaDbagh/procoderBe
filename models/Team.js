@@ -11,6 +11,10 @@ const teamSchema = new mongoose.Schema(
       ar: { type: String, required: true },
     },
     avatar: { type: String, required: true, maxlength: 2 },
+    /** Image URL: local `/uploads/...` or Cloudinary `https://res.cloudinary.com/...`. */
+    photoUrl: { type: String, default: "" },
+    /** Cloudinary public_id (folder `teams/...`); used to delete/replace the asset. */
+    photoPublicId: { type: String, default: "" },
     color: { type: String, default: "from-blue-400 to-cyan-400" },
     /** Top strip on home “Meet Our Stars” card (Tailwind bg-*). */
     headerColor: { type: String, default: "bg-primary" },

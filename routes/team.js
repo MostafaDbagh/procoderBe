@@ -4,10 +4,32 @@ const validate = require("../middleware/validate");
 const teamController = require("../controllers/teamController");
 const auth = require("../middleware/auth");
 const adminOnly = require("../middleware/adminOnly");
+const {
+  teamPhotoUploadMiddleware,
+} = require("../middleware/teamPhotoUpload");
 
 const router = express.Router();
 
 router.get("/admin/list", auth, adminOnly, teamController.listAdmin);
+
+router.post(
+  "/upload",
+  auth,
+  adminOnly,
+  (req, res, next) => {
+    teamPhotoUploadMiddleware(req, res, (err) => {
+      if (err) {
+        const msg =
+          err.code === "LIMIT_FILE_SIZE"
+            ? "File too large (max 2MB)"
+            : err.message || "Upload failed";
+        return res.status(400).json({ message: msg });
+      }
+      next();
+    });
+  },
+  teamController.uploadPhoto
+);
 
 // Public
 router.get("/", teamController.list);

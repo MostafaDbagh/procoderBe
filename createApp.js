@@ -1,3 +1,5 @@
+const path = require("path");
+const fs = require("fs");
 const express = require("express");
 const cors = require("cors");
 const { recommend } = require("./controllers/recommendController");
@@ -59,7 +61,11 @@ function createApp() {
     handleStripeWebhook
   );
 
-  app.use(express.json());
+   app.use(express.json());
+
+  const uploadsRoot = path.join(__dirname, "uploads");
+  fs.mkdirSync(path.join(uploadsRoot, "team"), { recursive: true });
+  app.use("/uploads", express.static(uploadsRoot));
 
   app.post("/api/recommend", recommend);
 

@@ -4,8 +4,7 @@ const Course = require("../models/Course");
 const PromoCode = require("../models/PromoCode");
 const { sendServerError } = require("../utils/safeErrorResponse");
 const { parsePagination, paginationMeta } = require("../utils/pagination");
-const { priceAfterCourseDiscount } = require("../utils/pricing");
-const { validatePromoForCourse, applyPromoToAmount } = require("../services/promoApply");
+const { buildPricingForCourse } = require("../services/enrollmentPricing");
 
 function escapeRegex(s) {
   return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -62,37 +61,21 @@ exports.create = async (req, res) => {
     if (duplicate) {
       return res.status(400).json({
         message:
-          "This child already has an active enrollment for this course. If another child shares the same name, add a unique Student ID on the form.",
+          "This child already has an active enrollment for this course.",
       });
     }
 
-    const listPrice = Math.round((Number(course.price) || 0) * 100) / 100;
-    const currency = "USD";
-    const courseDiscountPercent = Math.min(
-      100,
-      Math.max(0, Number(course.discountPercent) || 0)
-    );
-    const afterCourse = priceAfterCourseDiscount(course);
-
-    let promoDoc = null;
-    if (promoCodeRaw) {
-      const v = await validatePromoForCourse(promoCodeRaw, course.toObject());
-      if (v.error) {
-        return res.status(400).json({ message: v.error });
-      }
-      promoDoc = v.doc;
+    const pricing = await buildPricingForCourse(course, {
+      parentEmail: email,
+      promoCodeRaw,
+    });
+    if (promoCodeRaw && pricing.promoError) {
+      return res.status(400).json({ message: pricing.promoError });
     }
-
-    let amountDue = afterCourse;
-    let promoDiscountAmount = 0;
-    if (promoDoc) {
-      const ap = applyPromoToAmount(afterCourse, promoDoc, currency);
-      if (ap.error) {
-        return res.status(400).json({ message: ap.error });
-      }
-      amountDue = ap.afterPromo;
-      promoDiscountAmount = ap.promoSaved;
+    if (promoCodeRaw && !pricing.promoDoc) {
+      return res.status(400).json({ message: "Invalid promo code" });
     }
+    const promoDoc = pricing.promoDoc;
 
     const enrollmentPayload = {
       parentName: String(req.body.parentName || "").trim(),
@@ -138,23 +121,29 @@ exports.create = async (req, res) => {
         : undefined,
       agreeTerms: toBool(req.body.agreeTerms),
       agreePhotos: toBool(req.body.agreePhotos),
-      listPrice,
-      currency,
-      courseDiscountPercent,
-      priceAfterCourseDiscount: afterCourse,
+      listPrice: pricing.listPrice,
+      currency: pricing.currency,
+      courseDiscountPercent: pricing.courseDiscountPercent,
+      priceAfterCourseDiscount: pricing.priceAfterCourseDiscount,
+      firstTimeParentDiscountPercent: pricing.firstTimeParentDiscountPercent,
+      firstTimeParentDiscountAmount: pricing.firstTimeParentDiscountAmount,
+      priceAfterFirstTimeDiscount: pricing.priceAfterFirstTimeDiscount,
       promoCodeApplied: promoDoc ? promoDoc.code : null,
-      promoDiscountAmount,
-      amountDue,
+      promoDiscountAmount: pricing.promoDiscountAmount,
+      amountDue: pricing.amountDue,
     };
 
     const pricingOut = {
-      listPrice,
-      currency,
-      courseDiscountPercent,
-      priceAfterCourseDiscount: afterCourse,
+      listPrice: pricing.listPrice,
+      currency: pricing.currency,
+      courseDiscountPercent: pricing.courseDiscountPercent,
+      priceAfterCourseDiscount: pricing.priceAfterCourseDiscount,
+      firstTimeParentDiscountPercent: pricing.firstTimeParentDiscountPercent,
+      firstTimeParentDiscountAmount: pricing.firstTimeParentDiscountAmount,
+      priceAfterFirstTimeDiscount: pricing.priceAfterFirstTimeDiscount,
       promoCodeApplied: enrollmentPayload.promoCodeApplied,
-      promoDiscountAmount,
-      amountDue,
+      promoDiscountAmount: pricing.promoDiscountAmount,
+      amountDue: pricing.amountDue,
     };
 
     const respond = (enrollment) => {
@@ -219,7 +208,7 @@ exports.create = async (req, res) => {
     if (error.code === 11000) {
       return res.status(400).json({
         message:
-          "Duplicate enrollment: this child is already enrolled in this course (same name and student ID).",
+          "Duplicate enrollment: this child is already enrolled in this course.",
       });
     }
     sendServerError(res, error);
@@ -281,6 +270,33 @@ exports.updateStatus = async (req, res) => {
     const enrollment = await Enrollment.findByIdAndUpdate(
       req.params.id,
       { status: req.body.status },
+      { new: true }
+    );
+    if (!enrollment) {
+      return res.status(404).json({ message: "Enrollment not found" });
+    }
+    res.json(enrollment);
+  } catch (error) {
+    sendServerError(res, error);
+  }
+};
+
+const PAYMENT_STATUSES = ["none", "paid", "half", "deposit_15"];
+
+exports.updatePaymentStatus = async (req, res) => {
+  if (req.user.role !== "admin") {
+    return res.status(403).json({ message: "Admin access required" });
+  }
+
+  const paymentStatus = String(req.body.paymentStatus || "");
+  if (!PAYMENT_STATUSES.includes(paymentStatus)) {
+    return res.status(400).json({ message: "Invalid payment status" });
+  }
+
+  try {
+    const enrollment = await Enrollment.findByIdAndUpdate(
+      req.params.id,
+      { paymentStatus },
       { new: true }
     );
     if (!enrollment) {

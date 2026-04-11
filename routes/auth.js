@@ -7,6 +7,33 @@ const auth = require("../middleware/auth");
 const router = express.Router();
 
 router.post(
+  "/check-parent-signup",
+  validate([
+    body("name").trim().notEmpty().withMessage("Name is required"),
+    body("email")
+      .optional({ checkFalsy: true })
+      .isEmail()
+      .withMessage("Valid email is required"),
+    body("phone").optional().trim(),
+    body().custom((_, { req }) => {
+      const email = String(req.body.email || "").trim();
+      const phoneDigits = String(req.body.phone || "").replace(/\D/g, "");
+      if (!email && phoneDigits.length < 8) {
+        throw new Error("Valid email or phone (8+ digits) required");
+      }
+      if (
+        email &&
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+      ) {
+        throw new Error("Valid email is required");
+      }
+      return true;
+    }),
+  ]),
+  authController.checkParentSignupEligibility
+);
+
+router.post(
   "/register",
   validate([
     body("name").trim().notEmpty().withMessage("Name is required"),

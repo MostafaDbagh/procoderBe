@@ -4,13 +4,16 @@
   "description": "",
   "main": "server.js",
   "scripts": {
-    "test": "node --test test/**/*.test.js",
+    "test": "SUPPRESS_CLOUDINARY_MISSING_WARN=1 node --test test/**/*.test.js",
     "start": "node server.js",
     "dev": "nodemon server.js",
     "seed": "node seed.js",
     "seed:users": "node seed-users.js",
+    "seed:challenge": "node scripts/seed-monthly-challenge.js",
+    "seed:team": "node scripts/seed-team.js",
     "seed:admin": "node scripts/seed-admin.js",
-    "seed:admin:mock": "MOCK_ADMIN=1 node scripts/seed-admin.js"
+    "seed:admin:mock": "MOCK_ADMIN=1 node scripts/seed-admin.js",
+    "db:reset": "node scripts/reset-db.js"
   },
   "keywords": [],
   "author": "",
@@ -19,12 +22,15 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.87.0",
     "bcryptjs": "^3.0.3",
+    "cloudinary": "^1.41.3",
     "cors": "^2.8.6",
     "dotenv": "^17.4.1",
     "express": "^5.2.1",
     "express-validator": "^7.3.2",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.4.1",
+    "multer": "^2.1.1",
+    "multer-storage-cloudinary": "^4.0.0",
     "openai": "^6.34.0",
     "stripe": "^18.5.0"
   },

@@ -10,6 +10,7 @@ router.post(
   validate([
     body("courseId").trim().notEmpty(),
     body("promoCode").optional().trim(),
+    body("parentEmail").optional().trim().isEmail(),
   ]),
   promoQuoteController.quote
 );

@@ -29,8 +29,10 @@ exports.dashboard = async (req, res) => {
     const user = await User.findById(req.user.id).select("-password");
     if (!assertParentPortalUser(user, res)) return;
 
-    // Get all enrollments for this parent
-    const enrollments = await Enrollment.find({ email: user.email }).sort({ createdAt: -1 });
+    // All enrollments for this account: same email and/or linked at signup (multi-child families)
+    const enrollments = await Enrollment.find({
+      $or: [{ email: user.email }, { user: user._id }],
+    }).sort({ createdAt: -1 });
 
     // Get course details for each enrollment
     const courseIds = [...new Set(enrollments.map((e) => e.courseId))];
