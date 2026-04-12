@@ -2,6 +2,7 @@ const Category = require("../models/Category");
 const Course = require("../models/Course");
 const { parsePagination, paginationMeta } = require("../utils/pagination");
 const { sendServerError } = require("../utils/safeErrorResponse");
+const { dedupeBySlugKeepNewest } = require("../utils/adminListDedupeBySlug");
 
 exports.list = async (req, res) => {
   try {
@@ -20,14 +21,15 @@ exports.listAdmin = async (req, res) => {
       defaultLimit: 15,
       maxLimit: 500,
     });
-    const [total, rows] = await Promise.all([
-      Category.countDocuments({}),
-      Category.find({})
-        .sort({ sortOrder: 1, slug: 1 })
-        .skip(skip)
-        .limit(limit)
-        .lean(),
+    const pipelineBase = [
+      ...dedupeBySlugKeepNewest(),
+      { $sort: { sortOrder: 1, slug: 1 } },
+    ];
+    const [countResult, rows] = await Promise.all([
+      Category.aggregate([...pipelineBase, { $count: "total" }]),
+      Category.aggregate([...pipelineBase, { $skip: skip }, { $limit: limit }]),
     ]);
+    const total = countResult[0]?.total ?? 0;
     res.json({
       items: rows,
       ...paginationMeta(total, page, limit),
@@ -54,7 +56,9 @@ exports.getBySlug = async (req, res) => {
 
 exports.getBySlugAdmin = async (req, res) => {
   try {
-    const row = await Category.findOne({ slug: req.params.slug }).lean();
+    const row = await Category.findOne({ slug: req.params.slug })
+      .sort({ updatedAt: -1 })
+      .lean();
     if (!row) {
       return res.status(404).json({ message: "Category not found" });
     }
@@ -119,13 +123,15 @@ exports.update = async (req, res) => {
       return res.status(400).json({ message: "No valid fields to update" });
     }
 
-    const row = await Category.findOneAndUpdate({ slug }, $set, {
-      new: true,
+    const result = await Category.updateMany({ slug }, { $set: $set }, {
       runValidators: true,
     });
-    if (!row) {
+    if (result.matchedCount === 0) {
       return res.status(404).json({ message: "Category not found" });
     }
+    const row = await Category.findOne({ slug })
+      .sort({ updatedAt: -1 })
+      .lean();
     res.json(row);
   } catch (error) {
     sendServerError(res, error);
@@ -137,21 +143,23 @@ exports.remove = async (req, res) => {
     const slug = String(req.params.slug).trim().toLowerCase();
     const used = await Course.countDocuments({ category: slug });
     if (used > 0) {
-      const row = await Category.findOneAndUpdate(
+      const upd = await Category.updateMany(
         { slug },
-        { $set: { isActive: false } },
-        { new: true }
+        { $set: { isActive: false } }
       );
-      if (!row) {
+      if (upd.matchedCount === 0) {
         return res.status(404).json({ message: "Category not found" });
       }
+      const row = await Category.findOne({ slug })
+        .sort({ updatedAt: -1 })
+        .lean();
       return res.json({
         message: "Category deactivated (courses still reference this slug)",
         category: row,
       });
     }
-    const deleted = await Category.findOneAndDelete({ slug });
-    if (!deleted) {
+    const del = await Category.deleteMany({ slug });
+    if (del.deletedCount === 0) {
       return res.status(404).json({ message: "Category not found" });
     }
     res.json({ message: "Category deleted" });

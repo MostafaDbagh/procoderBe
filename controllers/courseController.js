@@ -2,6 +2,7 @@ const Course = require("../models/Course");
 const Enrollment = require("../models/Enrollment");
 const { sendServerError } = require("../utils/safeErrorResponse");
 const { parsePagination, paginationMeta } = require("../utils/pagination");
+const { dedupeBySlugKeepNewest } = require("../utils/adminListDedupeBySlug");
 const { destroyCloudinaryImage } = require("../utils/teamPhotoCloudinary");
 const { uploadUsesCloudinary } = require("../middleware/courseImageUpload");
 
@@ -56,14 +57,18 @@ exports.listAdmin = async (req, res) => {
       defaultLimit: 15,
       maxLimit: 100,
     });
-    const [total, courses] = await Promise.all([
-      Course.countDocuments(filter),
-      Course.find(filter)
-        .sort({ category: 1, ageMin: 1 })
-        .skip(skip)
-        .limit(limit)
-        .lean(),
+    const matchStages =
+      Object.keys(filter).length > 0 ? [{ $match: filter }] : [];
+    const pipelineBase = [
+      ...matchStages,
+      ...dedupeBySlugKeepNewest(),
+      { $sort: { category: 1, ageMin: 1 } },
+    ];
+    const [countResult, courses] = await Promise.all([
+      Course.aggregate([...pipelineBase, { $count: "total" }]),
+      Course.aggregate([...pipelineBase, { $skip: skip }, { $limit: limit }]),
     ]);
+    const total = countResult[0]?.total ?? 0;
     res.json({
       items: courses,
       ...paginationMeta(total, page, limit),
@@ -93,7 +98,9 @@ exports.getBySlugAdmin = async (req, res) => {
     return res.status(403).json({ message: "Admin access required" });
   }
   try {
-    const course = await Course.findOne({ slug: req.params.slug });
+    const course = await Course.findOne({ slug: req.params.slug }).sort({
+      updatedAt: -1,
+    });
     if (!course) {
       return res.status(404).json({ message: "Course not found" });
     }
@@ -125,7 +132,9 @@ exports.update = async (req, res) => {
   }
 
   try {
-    const existing = await Course.findOne({ slug: req.params.slug });
+    const existing = await Course.findOne({ slug: req.params.slug }).sort({
+      updatedAt: -1,
+    });
     if (!existing) {
       return res.status(404).json({ message: "Course not found" });
     }
@@ -158,14 +167,17 @@ exports.update = async (req, res) => {
       }
     }
 
-    const course = await Course.findOneAndUpdate(
+    const upd = await Course.updateMany(
       { slug: req.params.slug },
       { ...req.body, currency: "USD" },
-      { new: true, runValidators: true }
+      { runValidators: true }
     );
-    if (!course) {
+    if (upd.matchedCount === 0) {
       return res.status(404).json({ message: "Course not found" });
     }
+    const course = await Course.findOne({ slug: req.params.slug }).sort({
+      updatedAt: -1,
+    });
     res.json(course);
   } catch (error) {
     sendServerError(res, error);
@@ -178,21 +190,27 @@ exports.remove = async (req, res) => {
   }
 
   try {
-    const existing = await Course.findOne({ slug: req.params.slug });
-    if (!existing) {
+    const slug = String(req.params.slug || "")
+      .trim()
+      .toLowerCase();
+    const rows = await Course.find({ slug }).lean();
+    if (rows.length === 0) {
       return res.status(404).json({ message: "Course not found" });
     }
-    if (existing.imagePublicId) {
-      await destroyCloudinaryImage(existing.imagePublicId);
+    const pids = [
+      ...new Set(
+        rows
+          .map((r) => String(r.imagePublicId || "").trim())
+          .filter(Boolean)
+      ),
+    ];
+    for (const pid of pids) {
+      await destroyCloudinaryImage(pid);
     }
-    const course = await Course.findOneAndUpdate(
-      { slug: req.params.slug },
-      { isActive: false, imageUrl: "", imagePublicId: "" },
-      { new: true }
+    await Course.updateMany(
+      { slug },
+      { $set: { isActive: false, imageUrl: "", imagePublicId: "" } }
     );
-    if (!course) {
-      return res.status(404).json({ message: "Course not found" });
-    }
     res.json({ message: "Course deactivated" });
   } catch (error) {
     sendServerError(res, error);
@@ -209,8 +227,8 @@ exports.removePermanent = async (req, res) => {
     const slug = String(req.params.slug || "")
       .trim()
       .toLowerCase();
-    const existing = await Course.findOne({ slug });
-    if (!existing) {
+    const rows = await Course.find({ slug }).lean();
+    if (rows.length === 0) {
       return res.status(404).json({ message: "Course not found" });
     }
 
@@ -221,10 +239,17 @@ exports.removePermanent = async (req, res) => {
       });
     }
 
-    if (existing.imagePublicId) {
-      await destroyCloudinaryImage(existing.imagePublicId);
+    const pids = [
+      ...new Set(
+        rows
+          .map((r) => String(r.imagePublicId || "").trim())
+          .filter(Boolean)
+      ),
+    ];
+    for (const pid of pids) {
+      await destroyCloudinaryImage(pid);
     }
-    await Course.findOneAndDelete({ slug });
+    await Course.deleteMany({ slug });
     res.json({ message: "Course deleted permanently" });
   } catch (error) {
     sendServerError(res, error);
