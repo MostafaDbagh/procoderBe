@@ -248,15 +248,23 @@ exports.overview = async (req, res) => {
       countsByStatus: [],
       pendingAmount: [],
     };
+    /** Succeeded payments: totalCharged = sum of captures; afterRefunds = minus refunds (not Stripe fees). */
     const byCur = {};
     for (const r of payFacet.succeededByCurrency || []) {
       const cur = (r._id || "USD").toUpperCase();
       const gross = Math.round(Number(r.grossCents) || 0);
       const ref = Math.round(Number(r.refundedCents) || 0);
+      const totalCharged = gross / 100;
+      const afterRefunds = Math.max(0, gross - ref) / 100;
       byCur[cur] = {
-        gross: gross / 100,
-        net: Math.max(0, gross - ref) / 100,
+        totalCharged,
+        afterRefunds,
+        refunds: ref / 100,
         count: r.count || 0,
+        /** @deprecated use totalCharged — same value */
+        gross: totalCharged,
+        /** @deprecated use afterRefunds — this is not Stripe “net after fees” */
+        net: afterRefunds,
       };
     }
     const byStatus = (payFacet.countsByStatus || []).reduce((acc, x) => {
@@ -319,7 +327,9 @@ exports.overview = async (req, res) => {
       },
       payments: {
         note:
-          "Stripe Checkout / webhooks (succeeded). Catalog revenue above is still an estimate.",
+          "Recorded when Stripe webhooks mark a payment succeeded. Fees are handled by Stripe.",
+        explanation:
+          "Total charged = what parents paid (per currency). After refunds = that amount minus refunds recorded here. Stripe processing fees are not in this app — open Stripe Dashboard → Balance / Payouts to see what lands in your bank.",
         configured: Boolean(
           process.env.STRIPE_SECRET_KEY && process.env.STRIPE_WEBHOOK_SECRET
         ),
