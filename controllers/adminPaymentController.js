@@ -1,4 +1,3 @@
-const Stripe = require("stripe");
 const Enrollment = require("../models/Enrollment");
 const Course = require("../models/Course");
 const Payment = require("../models/Payment");
@@ -6,10 +5,17 @@ const { sendServerError } = require("../utils/safeErrorResponse");
 const { parsePagination, paginationMeta } = require("../utils/pagination");
 const { priceAfterCourseDiscount } = require("../utils/pricing");
 
-function getStripe() {
-  const key = process.env.STRIPE_SECRET_KEY;
-  if (!key) return null;
-  return new Stripe(key);
+function paymentInstructions(paymentMethod) {
+  if (paymentMethod === "bank_transfer") {
+    return (
+      process.env.PAYMENT_BANK_DETAILS?.trim() ||
+      "Configure PAYMENT_BANK_DETAILS on stem-Be (e.g. IBAN, account name, reference) and share these with the family."
+    );
+  }
+  return (
+    process.env.PAYMENT_PAYPAL_INFO?.trim() ||
+    "Configure PAYMENT_PAYPAL_INFO on stem-Be (e.g. PayPal.me link or email) and share it with the family."
+  );
 }
 
 exports.list = async (req, res) => {
@@ -40,22 +46,19 @@ exports.list = async (req, res) => {
 };
 
 /**
- * Create a Stripe Checkout Session for an enrollment (course list price).
- * successUrl / cancelUrl should point to your Next admin or parent site.
+ * Create or refresh a pending payment for an enrollment (bank transfer or PayPal).
  */
-exports.createCheckoutSession = async (req, res) => {
-  const stripe = getStripe();
-  if (!stripe) {
-    return res.status(503).json({
-      message:
-        "Stripe is not configured (set STRIPE_SECRET_KEY on stem-Be).",
-    });
-  }
-
+exports.recordManualPayment = async (req, res) => {
   try {
     const enrollmentId = String(req.body.enrollmentId || "").trim();
+    const paymentMethod = String(req.body.paymentMethod || "").trim();
     if (!enrollmentId) {
       return res.status(400).json({ message: "enrollmentId is required" });
+    }
+    if (!["bank_transfer", "paypal"].includes(paymentMethod)) {
+      return res.status(400).json({
+        message: "paymentMethod must be bank_transfer or paypal",
+      });
     }
 
     const enrollment = await Enrollment.findById(enrollmentId);
@@ -68,7 +71,6 @@ exports.createCheckoutSession = async (req, res) => {
       return res.status(400).json({ message: "Course not found for enrollment" });
     }
 
-    const currency = "usd";
     const amountMajor =
       enrollment.amountDue != null && Number(enrollment.amountDue) > 0
         ? Number(enrollment.amountDue)
@@ -77,64 +79,80 @@ exports.createCheckoutSession = async (req, res) => {
     if (!Number.isFinite(unitAmount) || unitAmount < 1) {
       return res.status(400).json({
         message:
-          "Amount due must be greater than zero before creating Stripe Checkout (set course price and discounts).",
+          "Amount due must be greater than zero (set course price / enrollment amount due).",
       });
     }
 
-    const base =
-      process.env.CLIENT_URL ||
-      process.env.ADMIN_CHECKOUT_BASE_URL ||
-      "http://localhost:3000";
-    const successUrl =
-      String(req.body.successUrl || "").trim() ||
-      `${base.replace(/\/$/, "")}/admin/dashboard?checkout=success`;
-    const cancelUrl =
-      String(req.body.cancelUrl || "").trim() ||
-      `${base.replace(/\/$/, "")}/admin/dashboard?checkout=cancel`;
-    const successSep = successUrl.includes("?") ? "&" : "?";
+    const desc =
+      paymentMethod === "bank_transfer"
+        ? "Bank transfer (pending)"
+        : "PayPal (pending)";
 
-    const titleEn = course.title?.en || enrollment.courseId;
-
-    const session = await stripe.checkout.sessions.create({
-      mode: "payment",
-      success_url: `${successUrl}${successSep}session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: cancelUrl,
-      metadata: { enrollmentId: String(enrollment._id) },
-      line_items: [
-        {
-          quantity: 1,
-          price_data: {
-            currency,
-            unit_amount: unitAmount,
-            product_data: {
-              name: `${titleEn} — ${enrollment.childName}`,
-              description: `Enrollment ${enrollment._id}`,
-            },
-          },
-        },
-      ],
+    let payment = await Payment.findOne({
+      enrollment: enrollment._id,
+      status: { $in: ["pending", "processing"] },
     });
+    let created = false;
 
-    await Payment.findOneAndUpdate(
-      { stripeCheckoutSessionId: session.id },
-      {
-        $set: {
-          enrollment: enrollment._id,
-          amountCents: unitAmount,
-          currency: currency.toUpperCase(),
-          status: "pending",
-          stripeCheckoutSessionId: session.id,
-          description: "Stripe Checkout",
-          metadata: { courseSlug: enrollment.courseId },
-        },
-      },
-      { upsert: true, new: true }
+    if (payment) {
+      payment.paymentMethod = paymentMethod;
+      payment.amountCents = unitAmount;
+      payment.currency = "USD";
+      payment.description = desc;
+      payment.metadata = {
+        ...(payment.metadata && typeof payment.metadata === "object"
+          ? payment.metadata
+          : {}),
+        courseSlug: enrollment.courseId,
+      };
+      await payment.save();
+    } else {
+      payment = await Payment.create({
+        enrollment: enrollment._id,
+        amountCents: unitAmount,
+        currency: "USD",
+        status: "pending",
+        paymentMethod,
+        description: desc,
+        metadata: { courseSlug: enrollment.courseId },
+      });
+      created = true;
+    }
+
+    const instructions = paymentInstructions(paymentMethod);
+    res.status(created ? 201 : 200).json({
+      payment,
+      instructions,
+      amountUsd: unitAmount / 100,
+    });
+  } catch (error) {
+    sendServerError(res, error);
+  }
+};
+
+exports.updateStatus = async (req, res) => {
+  try {
+    const status = String(req.body.status || "");
+    const allowed = [
+      "pending",
+      "processing",
+      "succeeded",
+      "failed",
+      "refunded",
+      "partially_refunded",
+    ];
+    if (!allowed.includes(status)) {
+      return res.status(400).json({ message: "Invalid status" });
+    }
+    const row = await Payment.findByIdAndUpdate(
+      req.params.id,
+      { $set: { status } },
+      { new: true, runValidators: true }
     );
-
-    res.status(201).json({
-      sessionId: session.id,
-      url: session.url,
-    });
+    if (!row) {
+      return res.status(404).json({ message: "Payment not found" });
+    }
+    res.json(row);
   } catch (error) {
     sendServerError(res, error);
   }

@@ -3,7 +3,6 @@ const fs = require("fs");
 const express = require("express");
 const cors = require("cors");
 const { recommend } = require("./controllers/recommendController");
-const { handleStripeWebhook } = require("./controllers/stripeWebhookController");
 
 function allowedOriginsSet() {
   const set = new Set();
@@ -55,13 +54,7 @@ function createApp() {
     })
   );
 
-  app.post(
-    "/api/webhooks/stripe",
-    express.raw({ type: "application/json" }),
-    handleStripeWebhook
-  );
-
-   app.use(express.json());
+  app.use(express.json());
 
   const uploadsRoot = path.join(__dirname, "uploads");
   fs.mkdirSync(path.join(uploadsRoot, "team"), { recursive: true });

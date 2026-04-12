@@ -102,21 +102,32 @@ router.get(
 );
 
 router.post(
-  "/payments/checkout-session",
+  "/payments/manual",
   auth,
   adminOnly,
   validate([
     body("enrollmentId").trim().notEmpty().isMongoId(),
-    body("successUrl")
-      .optional()
-      .trim()
-      .isURL({ require_tld: false, protocols: ["http", "https"] }),
-    body("cancelUrl")
-      .optional()
-      .trim()
-      .isURL({ require_tld: false, protocols: ["http", "https"] }),
+    body("paymentMethod").isIn(["bank_transfer", "paypal"]),
   ]),
-  adminPaymentController.createCheckoutSession
+  adminPaymentController.recordManualPayment
+);
+
+router.patch(
+  "/payments/:id",
+  auth,
+  adminOnly,
+  validate([
+    param("id").isMongoId(),
+    body("status").isIn([
+      "pending",
+      "processing",
+      "succeeded",
+      "failed",
+      "refunded",
+      "partially_refunded",
+    ]),
+  ]),
+  adminPaymentController.updateStatus
 );
 
 router.get(

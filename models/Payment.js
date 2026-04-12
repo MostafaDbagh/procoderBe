@@ -27,9 +27,11 @@ const paymentSchema = new mongoose.Schema(
       ],
       default: "pending",
     },
-    stripePaymentIntentId: { type: String, sparse: true, unique: true },
-    stripeCheckoutSessionId: { type: String, sparse: true, unique: true },
-    stripeCustomerId: String,
+    /** How the family should pay (admin-created payment requests). */
+    paymentMethod: {
+      type: String,
+      enum: ["bank_transfer", "paypal"],
+    },
     description: String,
     refundedCents: { type: Number, default: 0 },
     metadata: mongoose.Schema.Types.Mixed,

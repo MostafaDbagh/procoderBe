@@ -75,7 +75,9 @@ describe("Admin catalog API (MongoDB)", { skip: !canRun }, () => {
       slug: { $in: [crs, `${crs}-blk`] },
     });
     await Category.deleteMany({
-      slug: { $in: [catSlug(), catBlockSlug()] },
+      slug: {
+        $in: [catSlug(), catBlockSlug(), `intcat-act-${suffix}`],
+      },
     });
     await User.deleteMany({
       _id: { $in: [adminUser._id, parentUser._id] },
@@ -222,7 +224,7 @@ describe("Admin catalog API (MongoDB)", { skip: !canRun }, () => {
     assert.equal(res.status, 200);
   });
 
-  test("DELETE category deactivates when a course still references slug", async () => {
+  test("DELETE category hard-deletes even when a course still references slug", async () => {
     const blk = catBlockSlug();
     const crs = `${courseSlug()}-blk`;
 
@@ -259,20 +261,51 @@ describe("Admin catalog API (MongoDB)", { skip: !canRun }, () => {
       .delete(`/api/categories/${encodeURIComponent(blk)}`)
       .set(authHeader(adminToken));
     assert.equal(res.status, 200);
-    assert.match(res.body.message || "", /deactivat/i);
+    assert.match(res.body.message || "", /deleted/i);
 
-    const row = await Category.findOne({ slug: blk }).lean();
-    assert.ok(row);
-    assert.equal(row.isActive, false);
+    const catGone = await Category.findOne({ slug: blk }).lean();
+    assert.equal(catGone, null);
+
+    const courseStill = await Course.findOne({ slug: crs }).lean();
+    assert.ok(courseStill);
+    assert.equal(courseStill.category, blk);
 
     await request(app)
       .delete(`/api/courses/${encodeURIComponent(crs)}/permanent`)
       .set(authHeader(adminToken));
-    await request(app)
-      .delete(`/api/categories/${encodeURIComponent(blk)}`)
+  });
+
+  test("PUT category isActive deactivates and reactivates", async () => {
+    const slug = `intcat-act-${suffix}`;
+    let res = await request(app)
+      .post("/api/categories")
+      .set(authHeader(adminToken))
+      .send({
+        slug,
+        title: { en: "Toggle EN", ar: "Toggle AR" },
+        sortOrder: 995,
+        isActive: true,
+      });
+    assert.equal(res.status, 201);
+
+    res = await request(app)
+      .put(`/api/categories/${encodeURIComponent(slug)}`)
+      .set(authHeader(adminToken))
+      .send({ isActive: false });
+    assert.equal(res.status, 200, JSON.stringify(res.body));
+    assert.equal(res.body.isActive, false);
+
+    res = await request(app)
+      .put(`/api/categories/${encodeURIComponent(slug)}`)
+      .set(authHeader(adminToken))
+      .send({ isActive: true });
+    assert.equal(res.status, 200);
+    assert.equal(res.body.isActive, true);
+
+    res = await request(app)
+      .delete(`/api/categories/${encodeURIComponent(slug)}`)
       .set(authHeader(adminToken));
-    const after = await Category.findOne({ slug: blk }).lean();
-    assert.equal(after, null);
+    assert.equal(res.status, 200);
   });
 
   test("validation errors return errors array (category create)", async () => {

@@ -1,5 +1,4 @@
 const Category = require("../models/Category");
-const Course = require("../models/Course");
 const { parsePagination, paginationMeta } = require("../utils/pagination");
 const { sendServerError } = require("../utils/safeErrorResponse");
 const { dedupeBySlugKeepNewest } = require("../utils/adminListDedupeBySlug");
@@ -141,23 +140,6 @@ exports.update = async (req, res) => {
 exports.remove = async (req, res) => {
   try {
     const slug = String(req.params.slug).trim().toLowerCase();
-    const used = await Course.countDocuments({ category: slug });
-    if (used > 0) {
-      const upd = await Category.updateMany(
-        { slug },
-        { $set: { isActive: false } }
-      );
-      if (upd.matchedCount === 0) {
-        return res.status(404).json({ message: "Category not found" });
-      }
-      const row = await Category.findOne({ slug })
-        .sort({ updatedAt: -1 })
-        .lean();
-      return res.json({
-        message: "Category deactivated (courses still reference this slug)",
-        category: row,
-      });
-    }
     const del = await Category.deleteMany({ slug });
     if (del.deletedCount === 0) {
       return res.status(404).json({ message: "Category not found" });
