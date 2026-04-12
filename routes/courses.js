@@ -1,5 +1,5 @@
 const express = require("express");
-const { body } = require("express-validator");
+const { body, param } = require("express-validator");
 const validate = require("../middleware/validate");
 const courseController = require("../controllers/courseController");
 const auth = require("../middleware/auth");
@@ -107,6 +107,13 @@ router.put(
       .withMessage("Only USD is supported"),
   ]),
   courseController.update
+);
+router.delete(
+  "/:slug/permanent",
+  auth,
+  adminOnly,
+  validate([param("slug").trim().notEmpty().withMessage("Slug required")]),
+  courseController.removePermanent
 );
 router.delete("/:slug", auth, courseController.remove);
 

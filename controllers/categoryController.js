@@ -75,6 +75,10 @@ exports.create = async (req, res) => {
         en: String(req.body.title?.en || "").trim(),
         ar: String(req.body.title?.ar || "").trim(),
       },
+      description: {
+        en: String(req.body.description?.en ?? "").trim(),
+        ar: String(req.body.description?.ar ?? "").trim(),
+      },
       sortOrder:
         req.body.sortOrder !== undefined
           ? Number(req.body.sortOrder)
@@ -94,11 +98,19 @@ exports.create = async (req, res) => {
 exports.update = async (req, res) => {
   try {
     const slug = String(req.params.slug).trim().toLowerCase();
-    const { title, sortOrder, isActive } = req.body;
+    const { title, description, sortOrder, isActive } = req.body;
     const $set = {};
     if (title && typeof title === "object") {
       if (title.en !== undefined) $set["title.en"] = String(title.en).trim();
       if (title.ar !== undefined) $set["title.ar"] = String(title.ar).trim();
+    }
+    if (description && typeof description === "object") {
+      if (description.en !== undefined) {
+        $set["description.en"] = String(description.en).trim();
+      }
+      if (description.ar !== undefined) {
+        $set["description.ar"] = String(description.ar).trim();
+      }
     }
     if (sortOrder !== undefined) $set.sortOrder = Number(sortOrder);
     if (isActive !== undefined) $set.isActive = Boolean(isActive);

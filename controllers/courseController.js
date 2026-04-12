@@ -1,4 +1,5 @@
 const Course = require("../models/Course");
+const Enrollment = require("../models/Enrollment");
 const { sendServerError } = require("../utils/safeErrorResponse");
 const { parsePagination, paginationMeta } = require("../utils/pagination");
 const { destroyCloudinaryImage } = require("../utils/teamPhotoCloudinary");
@@ -193,6 +194,38 @@ exports.remove = async (req, res) => {
       return res.status(404).json({ message: "Course not found" });
     }
     res.json({ message: "Course deactivated" });
+  } catch (error) {
+    sendServerError(res, error);
+  }
+};
+
+/** Permanent delete (admin). Blocked if any enrollment references this course slug. */
+exports.removePermanent = async (req, res) => {
+  if (req.user.role !== "admin") {
+    return res.status(403).json({ message: "Admin access required" });
+  }
+
+  try {
+    const slug = String(req.params.slug || "")
+      .trim()
+      .toLowerCase();
+    const existing = await Course.findOne({ slug });
+    if (!existing) {
+      return res.status(404).json({ message: "Course not found" });
+    }
+
+    const enrollmentCount = await Enrollment.countDocuments({ courseId: slug });
+    if (enrollmentCount > 0) {
+      return res.status(400).json({
+        message: `Cannot delete: ${enrollmentCount} enrollment(s) use this course. Deactivate it instead, or cancel/remove those enrollments first.`,
+      });
+    }
+
+    if (existing.imagePublicId) {
+      await destroyCloudinaryImage(existing.imagePublicId);
+    }
+    await Course.findOneAndDelete({ slug });
+    res.json({ message: "Course deleted permanently" });
   } catch (error) {
     sendServerError(res, error);
   }

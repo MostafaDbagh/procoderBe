@@ -14,6 +14,10 @@ const categorySchema = new mongoose.Schema(
       en: { type: String, required: true },
       ar: { type: String, required: true },
     },
+    description: {
+      en: { type: String, default: "" },
+      ar: { type: String, default: "" },
+    },
     sortOrder: { type: Number, default: 0 },
     isActive: { type: Boolean, default: true },
   },

@@ -261,9 +261,7 @@ exports.overview = async (req, res) => {
         afterRefunds,
         refunds: ref / 100,
         count: r.count || 0,
-        /** @deprecated use totalCharged — same value */
         gross: totalCharged,
-        /** @deprecated use afterRefunds — this is not Stripe “net after fees” */
         net: afterRefunds,
       };
     }
