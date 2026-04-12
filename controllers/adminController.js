@@ -16,8 +16,20 @@ const COURSE_LOOKUP = {
   },
 };
 
-const UNWIND_COURSE = {
-  $unwind: { path: "$_course", preserveNullAndEmptyArrays: true },
+/**
+ * $lookup returns an array; $unwind duplicates one enrollment if multiple courses
+ * match the same slug. Take the first match so each enrollment counts once.
+ */
+const FIRST_COURSE_FROM_LOOKUP = {
+  $addFields: {
+    _course: {
+      $cond: {
+        if: { $gt: [{ $size: { $ifNull: ["$_course", []] } }, 0] },
+        then: { $arrayElemAt: ["$_course", 0] },
+        else: null,
+      },
+    },
+  },
 };
 
 /** Per enrollment: prefer stored amountDue; else catalog price after course discountPercent. */
@@ -69,7 +81,7 @@ const STAGE_LINE_PRICE = {
 
 const REVENUE_AFTER_LOOKUP = [
   COURSE_LOOKUP,
-  UNWIND_COURSE,
+  FIRST_COURSE_FROM_LOOKUP,
   STAGE_CATALOG_DISCOUNTED,
   STAGE_LINE_PRICE,
 ];
@@ -98,6 +110,8 @@ exports.overview = async (req, res) => {
       challengeSignups,
       revenueAgg,
       paymentFacet,
+      committedEnrollmentCount,
+      pipelineEnrollmentCount,
     ] = await Promise.all([
       User.aggregate([{ $group: { _id: "$role", count: { $sum: 1 } } }]),
       Enrollment.aggregate([
@@ -118,6 +132,7 @@ exports.overview = async (req, res) => {
       Contact.countDocuments({
         subject: { $regex: /\[ProCoder Challenge\]/i },
       }),
+      // revenueAgg must use REVENUE_AFTER_LOOKUP (one course row per enrollment)
       Enrollment.aggregate([
         {
           $facet: {
@@ -211,6 +226,10 @@ exports.overview = async (req, res) => {
           },
         },
       ]),
+      Enrollment.countDocuments({
+        status: { $in: ["confirmed", "active", "completed"] },
+      }),
+      Enrollment.countDocuments({ status: { $ne: "cancelled" } }),
     ]);
 
     const usersTotal = await User.countDocuments();
@@ -278,22 +297,16 @@ exports.overview = async (req, res) => {
       },
       revenue: {
         note:
-          "Uses each enrollment’s course catalog price today (slug match). Mixed currencies are not converted.",
+          "Today’s catalog list price per enrollment (slug match). Currencies not converted.",
         committed: {
           statuses: ["confirmed", "active", "completed"],
           byCurrency: facetToCurrencyMap(committedRows),
-          enrollmentCount: committedRows.reduce(
-            (s, r) => s + (r.enrollmentCount || 0),
-            0
-          ),
+          enrollmentCount: committedEnrollmentCount,
         },
         pipeline: {
           statuses: "all except cancelled (includes pending)",
           byCurrency: facetToCurrencyMap(pipelineRows),
-          enrollmentCount: pipelineRows.reduce(
-            (s, r) => s + (r.enrollmentCount || 0),
-            0
-          ),
+          enrollmentCount: pipelineEnrollmentCount,
         },
         byCourse: (rev.byCourseCommitted || []).map((r) => ({
           courseSlug: r._id,
