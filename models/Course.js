@@ -2,8 +2,8 @@ const mongoose = require("mongoose");
 
 const courseSchema = new mongoose.Schema(
   {
-    /** Primary instructor for this course (one instructor per course). Also see User.assignedCourses. */
-    instructorId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    /** Instructors assigned to this course (one or more). Also see User.assignedCourses. */
+    instructors: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     slug: { type: String, required: true, unique: true },
     category: {
       type: String,

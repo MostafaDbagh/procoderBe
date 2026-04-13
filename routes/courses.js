@@ -108,6 +108,13 @@ router.put(
   ]),
   courseController.update
 );
+router.patch(
+  "/:slug/reactivate",
+  auth,
+  adminOnly,
+  validate([param("slug").trim().notEmpty().withMessage("Slug required")]),
+  courseController.reactivate
+);
 router.delete(
   "/:slug/permanent",
   auth,

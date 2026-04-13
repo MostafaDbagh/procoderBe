@@ -33,8 +33,7 @@
     "mongoose": "^9.4.1",
     "multer": "^2.1.1",
     "multer-storage-cloudinary": "^4.0.0",
-    "openai": "^6.34.0",
-    "stripe": "^18.5.0"
+    "openai": "^6.34.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.14",

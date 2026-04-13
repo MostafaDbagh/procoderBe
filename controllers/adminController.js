@@ -248,7 +248,7 @@ exports.overview = async (req, res) => {
       countsByStatus: [],
       pendingAmount: [],
     };
-    /** Succeeded payments: totalCharged = sum of captures; afterRefunds = minus refunds (not Stripe fees). */
+    /** Succeeded payments: totalCharged = gross; afterRefunds = minus refunds recorded in-app. */
     const byCur = {};
     for (const r of payFacet.succeededByCurrency || []) {
       const cur = (r._id || "USD").toUpperCase();
@@ -325,12 +325,9 @@ exports.overview = async (req, res) => {
       },
       payments: {
         note:
-          "Recorded when Stripe webhooks mark a payment succeeded. Fees are handled by Stripe.",
+          "Payments are bank transfer or PayPal: admins create a pending request from Enrollments, then mark succeeded when funds arrive.",
         explanation:
-          "Total charged = what parents paid (per currency). After refunds = that amount minus refunds recorded here. Stripe processing fees are not in this app — open Stripe Dashboard → Balance / Payouts to see what lands in your bank.",
-        configured: Boolean(
-          process.env.STRIPE_SECRET_KEY && process.env.STRIPE_WEBHOOK_SECRET
-        ),
+          "Total charged = recorded payment amounts (per currency). After refunds = that amount minus refunds entered here. Set PAYMENT_BANK_DETAILS and PAYMENT_PAYPAL_INFO on the API for instruction text shown to admins.",
         succeeded: {
           byCurrency: byCur,
           paymentCount: (payFacet.succeededByCurrency || []).reduce(
@@ -339,7 +336,7 @@ exports.overview = async (req, res) => {
           ),
         },
         byStatus,
-        pendingCheckoutSessions: pendingCount,
+        pendingPayments: pendingCount,
       },
     });
   } catch (error) {

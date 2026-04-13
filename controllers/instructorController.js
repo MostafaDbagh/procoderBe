@@ -12,10 +12,10 @@ function requireInstructor(req, res) {
   return true;
 }
 
-/** Course slugs this user may teach: explicit Course.instructorId + legacy User.assignedCourses. */
+/** Course slugs this user may teach: Course.instructors array + legacy User.assignedCourses. */
 async function getInstructorCourseSlugs(userId, assignedCourses) {
   const fromUser = Array.isArray(assignedCourses) ? assignedCourses : [];
-  const courses = await Course.find({ instructorId: userId, isActive: true }).select("slug");
+  const courses = await Course.find({ instructors: userId, isActive: true }).select("slug");
   const fromDoc = courses.map((c) => c.slug);
   return [...new Set([...fromUser, ...fromDoc])];
 }

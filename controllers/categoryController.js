@@ -5,9 +5,18 @@ const { dedupeBySlugKeepNewest } = require("../utils/adminListDedupeBySlug");
 
 exports.list = async (req, res) => {
   try {
-    const rows = await Category.find({ isActive: true })
-      .sort({ sortOrder: 1, slug: 1 })
-      .lean();
+    const rows = await Category.aggregate([
+      { $match: { isActive: true } },
+      { $sort: { updatedAt: -1 } },
+      {
+        $group: {
+          _id: "$slug",
+          doc: { $first: "$$ROOT" },
+        },
+      },
+      { $replaceRoot: { newRoot: "$doc" } },
+      { $sort: { sortOrder: 1, slug: 1 } },
+    ]);
     res.json(rows);
   } catch (error) {
     sendServerError(res, error);

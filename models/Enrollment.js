@@ -36,7 +36,7 @@ const enrollmentSchema = new mongoose.Schema(
       enum: ["pending", "confirmed", "active", "completed", "cancelled"],
       default: "pending",
     },
-    /** Admin-tracked payment progress (manual; not synced from Stripe automatically). */
+    /** Admin-tracked payment progress (manual). */
     paymentStatus: {
       type: String,
       enum: ["none", "paid", "half", "deposit_15"],

@@ -1,4 +1,5 @@
 const Course = require("../models/Course");
+const User = require("../models/User");
 const Enrollment = require("../models/Enrollment");
 const { sendServerError } = require("../utils/safeErrorResponse");
 const { parsePagination, paginationMeta } = require("../utils/pagination");
@@ -28,14 +29,21 @@ exports.uploadCourseImage = async (req, res) => {
 exports.list = async (req, res) => {
   try {
     const { category, level, ageMin, ageMax } = req.query;
-    const filter = { isActive: true };
+    const match = { isActive: true };
 
-    if (category) filter.category = category;
-    if (level) filter.level = level;
-    if (ageMin) filter.ageMax = { $gte: Number(ageMin) };
-    if (ageMax) filter.ageMin = { $lte: Number(ageMax) };
+    if (category) match.category = category;
+    if (level) match.level = level;
+    if (ageMin) match.ageMax = { $gte: Number(ageMin) };
+    if (ageMax) match.ageMin = { $lte: Number(ageMax) };
 
-    const courses = await Course.find(filter).sort({ category: 1, ageMin: 1 });
+    const courses = await Course.aggregate([
+      { $match: match },
+      { $sort: { updatedAt: -1 } },
+      { $group: { _id: "$slug", doc: { $first: "$$ROOT" } } },
+      { $replaceRoot: { newRoot: "$doc" } },
+      { $project: { instructors: 0 } },
+      { $sort: { category: 1, ageMin: 1 } },
+    ]);
     res.json(courses);
   } catch (error) {
     sendServerError(res, error);
@@ -69,8 +77,39 @@ exports.listAdmin = async (req, res) => {
       Course.aggregate([...pipelineBase, { $skip: skip }, { $limit: limit }]),
     ]);
     const total = countResult[0]?.total ?? 0;
+
+    // Populate instructor names for admin view
+    const allInstructorIds = [
+      ...new Set(
+        courses.flatMap((c) =>
+          Array.isArray(c.instructors)
+            ? c.instructors.map((id) => String(id))
+            : []
+        )
+      ),
+    ];
+    let instructorMap = {};
+    if (allInstructorIds.length > 0) {
+      const instructors = await User.find({
+        _id: { $in: allInstructorIds },
+      })
+        .select("_id name")
+        .lean();
+      instructorMap = Object.fromEntries(
+        instructors.map((i) => [String(i._id), i.name])
+      );
+    }
+    const items = courses.map((c) => ({
+      ...c,
+      instructorNames: Array.isArray(c.instructors)
+        ? c.instructors
+            .map((id) => instructorMap[String(id)])
+            .filter(Boolean)
+        : [],
+    }));
+
     res.json({
-      items: courses,
+      items,
       ...paginationMeta(total, page, limit),
     });
   } catch (error) {
@@ -83,7 +122,7 @@ exports.getBySlug = async (req, res) => {
     const course = await Course.findOne({
       slug: req.params.slug,
       isActive: true,
-    });
+    }).select("-instructors");
     if (!course) {
       return res.status(404).json({ message: "Course not found" });
     }
@@ -197,21 +236,35 @@ exports.remove = async (req, res) => {
     if (rows.length === 0) {
       return res.status(404).json({ message: "Course not found" });
     }
-    const pids = [
-      ...new Set(
-        rows
-          .map((r) => String(r.imagePublicId || "").trim())
-          .filter(Boolean)
-      ),
-    ];
-    for (const pid of pids) {
-      await destroyCloudinaryImage(pid);
-    }
+    // Soft-delete: only hide from catalog; preserve images so the course can be reactivated.
     await Course.updateMany(
       { slug },
-      { $set: { isActive: false, imageUrl: "", imagePublicId: "" } }
+      { $set: { isActive: false } }
     );
     res.json({ message: "Course deactivated" });
+  } catch (error) {
+    sendServerError(res, error);
+  }
+};
+
+/** Reactivate a previously deactivated course (admin). */
+exports.reactivate = async (req, res) => {
+  if (req.user.role !== "admin") {
+    return res.status(403).json({ message: "Admin access required" });
+  }
+
+  try {
+    const slug = String(req.params.slug || "")
+      .trim()
+      .toLowerCase();
+    const upd = await Course.updateMany(
+      { slug },
+      { $set: { isActive: true } }
+    );
+    if (upd.matchedCount === 0) {
+      return res.status(404).json({ message: "Course not found" });
+    }
+    res.json({ message: "Course reactivated" });
   } catch (error) {
     sendServerError(res, error);
   }
