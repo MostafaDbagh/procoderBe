@@ -129,6 +129,7 @@ function createApp() {
   app.use("/api/admin", require("./routes/admin"));
   app.use("/api/blog", require("./routes/blog"));
   app.use("/api/referrals", require("./routes/referral"));
+  app.use("/api/careers", require("./routes/careers"));
 
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
