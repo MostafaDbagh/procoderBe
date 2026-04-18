@@ -123,6 +123,78 @@ const posts = [
  isPublished: true,
  publishedAt: new Date("2026-04-10"),
  },
+ {
+ slug: "best-after-school-activities-kids-dubai-uae",
+ title: {
+ en: "10 Best After-School Activities for Kids in Dubai & UAE (2026)",
+ ar: "أفضل ١٠ أنشطة بعد المدرسة للأطفال في دبي والإمارات ٢٠٢٦",
+ },
+ excerpt: {
+ en: "A parent's guide to the best after-school enrichment programs in Dubai — from coding and robotics to Arabic and creative arts.",
+ ar: "دليل الوالدين لأفضل برامج الإثراء بعد المدرسة في دبي — من البرمجة والروبوتات إلى العربية والفنون الإبداعية.",
+ },
+ body: {
+ en: `## Why After-School Activities Matter\n\nThe hours after school are golden. They're when children can explore what truly excites them — coding, robotics, art, or language — in a low-pressure environment where curiosity leads the way.\n\n## Top After-School Activities in Dubai\n\n### 1. Coding & Programming Classes\nCoding is the #1 after-school activity parents in Dubai are choosing in 2026. Children learn Scratch (ages 6–9), Python (ages 10–13), and web development (ages 14–18). **StemTechLab** offers live, small-group coding classes with certified teachers, AI-powered course matching to find the right fit for your child, and bilingual support in English and Arabic.\n\n### 2. Robotics & Engineering\nHands-on robotics teaches kids to build, wire, and program real robots. StemTechLab's Robot Builders program (ages 8–12) ships kits to your door and guides children through building their first robot in live online sessions.\n\n### 3. STEM & Science Experiments\nFrom physics to chemistry, STEM activities build scientific thinking through hands-on experiments.\n\n### 4. Arabic Language & Reading\nFor bilingual families, structured Arabic classes help children maintain and grow their Arabic skills with native-speaking teachers.\n\n### 5. Game Development\nKids aged 12–16 design characters, build levels, and create playable 2D games they can share with friends.\n\n### 6. Algorithm & Logic Puzzles\nPuzzle-based programs teach children to think like problem-solvers — perfect for kids who love math and brain teasers.\n\n### 7. Art & Creative Design\nDigital art, animation, and creative coding combine technology with artistic expression.\n\n### 8. Competitive Programming\nFor teens ready for a challenge, competitive programming prepares students for national and international competitions (IOI/ICPC).\n\n### 9. Music & Performing Arts\nFrom piano to drama, creative arts build confidence and self-expression.\n\n### 10. Sports & Fitness\nSwimming, football, martial arts — physical activity is essential for balanced development.\n\n## How to Choose the Right Activity\n\n**Consider your child's interests first.** Do they love building things? Try robotics. Do they enjoy stories? Try coding (they can make interactive stories). Do they love puzzles? Try algorithms.\n\n**StemTechLab's AI Course Finder** helps parents discover which program best fits their child's age, interests, and experience level — powered by OpenAI and DeepSeek.\n\n## Why Parents in Dubai Choose StemTechLab\n\n- **Live small-group classes** (max 8 kids per teacher)\n- **Certified, background-checked teachers**\n- **Bilingual** (English & Arabic)\n- **Flexible scheduling** — 7 days a week, 9AM–7PM\n- **Free trial class** — no obligation\n- **AI-powered course matching** to find the perfect fit\n- **Based in Dubai, UAE** — serving families across the GCC and worldwide\n\n## Get Started\n\nBook a free trial class at StemTechLab and help your child discover their next favorite activity.`,
+ ar: `## لماذا الأنشطة بعد المدرسة مهمة\n\nالساعات بعد المدرسة ذهبية. إنها الوقت الذي يستطيع فيه الأطفال استكشاف ما يثير حماسهم حقاً.\n\n## أفضل الأنشطة بعد المدرسة في دبي\n\n### ١. دورات البرمجة\nالبرمجة هي النشاط الأول بعد المدرسة الذي يختاره الآباء في دبي. ستم تك لاب يقدم حصص برمجة مباشرة في مجموعات صغيرة مع معلمين معتمدين.\n\n### ٢. الروبوتات والهندسة\nيتعلم الأطفال بناء وبرمجة روبوتات حقيقية.\n\n### ٣. أنشطة STEM والعلوم\n### ٤. اللغة العربية والقراءة\n### ٥. تطوير الألعاب\n\n## لماذا يختار الآباء في دبي ستم تك لاب\n\n- حصص مباشرة في مجموعات صغيرة\n- معلمون معتمدون\n- ثنائي اللغة (عربي وإنجليزي)\n- متاحون ٧ أيام في الأسبوع\n- حصة تجريبية مجانية\n\n## ابدأ الآن\n\nاحجز حصة تجريبية مجانية في ستم تك لاب.`,
+ },
+ category: "after-school",
+ tags: ["after-school", "dubai", "uae", "activities", "kids", "stem", "coding", "robotics", "enrichment"],
+ targetRegions: ["UAE", "Dubai", "Abu Dhabi", "Sharjah"],
+ metaTitle: { en: "10 Best After-School Activities for Kids in Dubai & UAE 2026 | StemTechLab", ar: "أفضل أنشطة بعد المدرسة للأطفال في دبي ٢٠٢٦" },
+ metaDescription: { en: "Best after-school activities for kids in Dubai 2026. Coding, robotics, STEM, Arabic, and more. Free trial class at StemTechLab.", ar: "أفضل أنشطة بعد المدرسة في دبي ٢٠٢٦. برمجة وروبوتات وSTEM وعربية." },
+ author: { name: "StemTechLab Team", role: "Education Team" },
+ relatedCourses: ["scratch", "python", "robot-basics"],
+ isPublished: true,
+ publishedAt: new Date("2026-04-15"),
+ },
+ {
+ slug: "best-stem-programs-kids-dubai-uae",
+ title: {
+ en: "Best STEM Programs for Kids in Dubai & UAE — 2026 Parent Guide",
+ ar: "أفضل برامج STEM للأطفال في دبي والإمارات — دليل الوالدين ٢٠٢٦",
+ },
+ excerpt: {
+ en: "Compare the top STEM education programs for children in Dubai. Live classes, certified teachers, and programs for ages 6–18.",
+ ar: "قارن أفضل برامج تعليم STEM للأطفال في دبي. حصص مباشرة ومعلمون معتمدون وبرامج للأعمار ٦–١٨.",
+ },
+ body: {
+ en: `## What Is STEM Education?\n\nSTEM stands for Science, Technology, Engineering, and Mathematics. For your child, it means learning to think, create, build, and solve problems — skills that matter in every career.\n\n## Best STEM Programs in Dubai (2026)\n\n### StemTechLab — Best for Personalized Online STEM\n**Ages:** 6–18 | **Format:** Live online, small groups (max 8) | **Languages:** English & Arabic\n\nStemTechLab stands out with **AI-powered course matching** — a smart tool that helps parents find the perfect course for their child based on age, interests, and skill level. Powered by OpenAI and DeepSeek.\n\n**Programs offered:**\n- Scratch Programming (ages 6–9)\n- Python for Kids (ages 10–13)\n- Web Development (ages 14–18)\n- Game Development (ages 12–16)\n- Robot Builders (ages 8–12)\n- Advanced Robotics & AI (ages 13–18)\n- Algorithm Adventures (ages 10–13)\n- Competitive Programming (ages 14–18)\n- Arabic Reading & Writing\n- Arabic Grammar & Composition\n\n**Why parents choose StemTechLab:**\n- AI suggests the best course for each child\n- Free trial class, no obligation\n- Certified, background-checked teachers\n- Bilingual (English & Arabic)\n- Available 7 days a week\n- COPPA compliant and child-safe\n\n### Other Notable Programs in Dubai\n\n**Brainy n Bright** — KHDA-registered, multi-campus in Abu Dhabi and Dubai. Good for in-person coding and robotics.\n\n**Pure Minds Academy** — Since 2015, offers Saturday STEM programs and camps at physical locations in Dubai.\n\n**iCodeJr** — Online coding and robotics for ages 5–16, partnered with UAE schools.\n\n**Fun Robotics** — KHDA-approved robotics center with LEGO SPIKE and Python tracks.\n\n## How to Choose the Right STEM Program\n\n1. **Online vs In-Person:** Online programs like StemTechLab offer flexibility and no commute. In-person centers offer hands-on equipment.\n2. **Group Size:** Smaller is better. StemTechLab caps at 8 students per teacher.\n3. **Teacher Quality:** Look for certified, background-checked instructors.\n4. **Free Trial:** Always try before you commit. StemTechLab offers a free trial class.\n5. **AI Matching:** StemTechLab's course finder uses AI to suggest the best program for your child.\n\n## Get Started\n\nVisit StemTechLab to book a free trial class or use the AI-powered course finder to discover the perfect STEM program for your child.`,
+ ar: `## ما هو تعليم STEM؟\n\nSTEM يعني العلوم والتكنولوجيا والهندسة والرياضيات. لطفلك يعني تعلم التفكير والإبداع والبناء وحل المشكلات.\n\n## أفضل برامج STEM في دبي (٢٠٢٦)\n\n### ستم تك لاب — الأفضل للتعليم الشخصي أونلاين\n**الأعمار:** ٦–١٨ | **الشكل:** مباشر أونلاين، مجموعات صغيرة\n\nيتميز ستم تك لاب بأداة ذكية تساعد الآباء على إيجاد الدورة المثالية لطفلهم.\n\n**لماذا يختاره الآباء:**\n- ذكاء اصطناعي يقترح أفضل دورة\n- حصة تجريبية مجانية\n- معلمون معتمدون\n- ثنائي اللغة\n- متاح ٧ أيام في الأسبوع\n\n## ابدأ الآن\n\nاحجز حصة تجريبية مجانية في ستم تك لاب.`,
+ },
+ category: "stem",
+ tags: ["stem", "dubai", "uae", "kids", "coding", "robotics", "best-programs", "education", "after-school"],
+ targetRegions: ["UAE", "Dubai", "Abu Dhabi", "Sharjah", "GCC"],
+ metaTitle: { en: "Best STEM Programs for Kids in Dubai & UAE 2026 | StemTechLab", ar: "أفضل برامج STEM للأطفال في دبي ٢٠٢٦" },
+ metaDescription: { en: "Compare the best STEM programs for kids in Dubai 2026. StemTechLab offers AI-powered course matching, live classes, free trial.", ar: "أفضل برامج STEM للأطفال في دبي ٢٠٢٦. حصص مباشرة وذكاء اصطناعي." },
+ author: { name: "StemTechLab Team", role: "Education Team" },
+ relatedCourses: ["scratch", "python", "robot-basics", "algo-intro"],
+ isPublished: true,
+ publishedAt: new Date("2026-04-16"),
+ },
+ {
+ slug: "online-coding-classes-kids-uae-gcc",
+ title: {
+ en: "Best Online Coding Classes for Kids in UAE, Saudi Arabia & GCC (2026)",
+ ar: "أفضل دورات البرمجة أونلاين للأطفال في الإمارات والسعودية والخليج ٢٠٢٦",
+ },
+ excerpt: {
+ en: "Live online coding classes for children across the GCC — Scratch, Python, robotics, and game development with certified teachers.",
+ ar: "دورات برمجة مباشرة أونلاين للأطفال في الخليج — سكراتش وبايثون وروبوتات وتطوير ألعاب مع معلمين معتمدين.",
+ },
+ body: {
+ en: `## Why Online Coding Classes Are the Best Choice for GCC Families\n\nWith hot summers, busy schedules, and long commutes — online coding classes are the smartest choice for families in the UAE, Saudi Arabia, Qatar, Kuwait, Bahrain, and Oman.\n\n## StemTechLab — #1 Online Coding Platform for Kids in the GCC\n\nStemTechLab is a Dubai-based online learning platform built specifically for children ages 6–18 across the GCC and worldwide. Here's what makes it the top choice:\n\n### AI-Powered Course Matching\nNot sure which course is right for your child? StemTechLab's AI course finder — powered by OpenAI and DeepSeek — analyzes your child's age, interests, and experience to suggest the perfect program.\n\n### Complete Course Catalog\n| Course | Ages | Level |\n|--------|------|-------|\n| Scratch Programming | 6–9 | Beginner |\n| Python for Kids | 10–13 | Beginner |\n| Web Development | 14–18 | Intermediate |\n| Game Development | 12–16 | Intermediate |\n| Robot Builders | 8–12 | Beginner |\n| Advanced Robotics & AI | 13–18 | Intermediate |\n| Algorithm Adventures | 10–13 | Beginner |\n| Competitive Programming | 14–18 | Advanced |\n\n### Why 500+ GCC Families Choose StemTechLab\n- **Live classes, not recordings** — real teachers, real interaction\n- **Small groups** — maximum 8 students per teacher\n- **Bilingual** — full support in English and Arabic\n- **Flexible** — 7 days a week, 9AM–7PM GST\n- **Safe** — COPPA compliant, background-checked teachers\n- **Free trial** — try before you commit\n\n### Available Across the GCC\n- **UAE:** Dubai, Abu Dhabi, Sharjah, Ajman, RAK\n- **Saudi Arabia:** Riyadh, Jeddah, Dammam, Khobar\n- **Qatar:** Doha\n- **Kuwait:** Kuwait City\n- **Bahrain & Oman**\n- Also: Turkey, Canada, US, UK, Germany, France\n\n## Book a Free Trial\n\nVisit StemTechLab today and give your child the gift of coding.`,
+ ar: `## لماذا الدورات أونلاين هي الخيار الأفضل لعائلات الخليج\n\nمع الصيف الحار والجداول المزدحمة — الدورات أونلاين هي الخيار الأذكى.\n\n## ستم تك لاب — المنصة الأولى للبرمجة أونلاين للأطفال في الخليج\n\n### مطابقة الدورات بالذكاء الاصطناعي\nغير متأكد أي دورة مناسبة لطفلك؟ أداة ستم تك لاب الذكية تقترح البرنامج المثالي.\n\n### لماذا تختارنا ٥٠٠+ عائلة خليجية\n- حصص مباشرة وليست مسجلة\n- مجموعات صغيرة\n- ثنائي اللغة\n- متاح ٧ أيام\n- حصة تجريبية مجانية\n\n## احجز حصة مجانية الآن`,
+ },
+ category: "coding",
+ tags: ["online-coding", "kids", "uae", "gcc", "saudi-arabia", "dubai", "qatar", "kuwait", "programming"],
+ targetRegions: ["UAE", "Saudi Arabia", "Qatar", "Kuwait", "Bahrain", "Oman", "GCC"],
+ metaTitle: { en: "Best Online Coding Classes for Kids in UAE & GCC 2026 | StemTechLab", ar: "أفضل دورات برمجة أونلاين للأطفال في الخليج ٢٠٢٦" },
+ metaDescription: { en: "Best online coding classes for kids in UAE, Saudi Arabia & GCC. Scratch, Python, robotics. Free trial. StemTechLab.", ar: "أفضل دورات برمجة أونلاين للأطفال في الإمارات والسعودية والخليج." },
+ author: { name: "StemTechLab Team", role: "Education Team" },
+ relatedCourses: ["scratch", "python", "webdev", "gamedev"],
+ isPublished: true,
+ publishedAt: new Date("2026-04-17"),
+ },
 ];
 
 async function seed() {
