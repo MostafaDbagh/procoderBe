@@ -37,4 +37,6 @@ const teamSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+teamSchema.index({ isActive: 1, order: 1 });
+
 module.exports = mongoose.model("Team", teamSchema);

@@ -48,4 +48,8 @@ const courseSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+courseSchema.index({ isActive: 1, category: 1 });
+courseSchema.index({ isActive: 1, enrollmentCount: -1 });
+courseSchema.index({ slug: 1, isActive: 1 });
+
 module.exports = mongoose.model("Course", courseSchema);

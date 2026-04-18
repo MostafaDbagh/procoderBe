@@ -76,4 +76,9 @@ enrollmentSchema.index(
   }
 );
 
+enrollmentSchema.index({ email: 1, status: 1 });
+enrollmentSchema.index({ courseId: 1 });
+enrollmentSchema.index({ status: 1, createdAt: -1 });
+enrollmentSchema.index({ user: 1, status: 1 });
+
 module.exports = mongoose.model("Enrollment", enrollmentSchema);

@@ -17,7 +17,7 @@ const mongoose = require("mongoose");
 const User = require("../models/User");
 
 const MOCK_DEFAULTS = {
-  email: "instructor@procoder.local",
+  email: "instructor@stemtechlab.local",
   password: "InstructorMock1!",
   name: "Mock Instructor",
   phone: "+966509876543",

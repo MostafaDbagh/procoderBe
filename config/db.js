@@ -4,7 +4,11 @@ const ensureDefaultCourses = require("../services/ensureDefaultCourses");
 
 const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(process.env.MONGODB_URI);
+    const conn = await mongoose.connect(process.env.MONGODB_URI, {
+      maxPoolSize: 50,
+      minPoolSize: 10,
+      maxIdleTimeMS: 30000,
+    });
     console.log(`MongoDB connected: ${conn.connection.host}`);
     await ensureDefaultCategories();
     await ensureDefaultCourses();

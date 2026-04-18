@@ -2,6 +2,7 @@ const path = require("path");
 const fs = require("fs");
 const express = require("express");
 const cors = require("cors");
+const compression = require("compression");
 const { recommend } = require("./controllers/recommendController");
 
 function allowedOriginsSet() {
@@ -54,7 +55,8 @@ function createApp() {
     })
   );
 
-  app.use(express.json());
+  app.use(compression());
+  app.use(express.json({ limit: "10mb" }));
 
   const uploadsRoot = path.join(__dirname, "uploads");
   fs.mkdirSync(path.join(uploadsRoot, "team"), { recursive: true });

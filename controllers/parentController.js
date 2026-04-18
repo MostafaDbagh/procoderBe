@@ -6,18 +6,18 @@ const { sendServerError } = require("../utils/safeErrorResponse");
 
 const PARENT_PORTAL_ROLES = ["parent", "student"];
 const PARENT_PORTAL_FORBIDDEN =
-  "This area is for parents and students. Instructors and admins should use the instructor portal.";
+ "This area is for parents and students. Instructors and admins should use the instructor portal.";
 
 function assertParentPortalUser(user, res) {
-  if (!user) {
-    res.status(404).json({ message: "User not found" });
-    return false;
-  }
-  if (!PARENT_PORTAL_ROLES.includes(user.role)) {
-    res.status(403).json({ message: PARENT_PORTAL_FORBIDDEN });
-    return false;
-  }
-  return true;
+ if (!user) {
+ res.status(404).json({ message: "User not found" });
+ return false;
+ }
+ if (!PARENT_PORTAL_ROLES.includes(user.role)) {
+ res.status(403).json({ message: PARENT_PORTAL_FORBIDDEN });
+ return false;
+ }
+ return true;
 }
 
 /**
@@ -25,97 +25,101 @@ function assertParentPortalUser(user, res) {
  * Returns full parent dashboard data: profile, children, enrollments with course info, stats.
  */
 exports.dashboard = async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id).select("-password");
-    if (!assertParentPortalUser(user, res)) return;
+ try {
+ const user = await User.findById(req.user.id).select("-password");
+ if (!assertParentPortalUser(user, res)) return;
 
-    // All enrollments for this account: same email and/or linked at signup (multi-child families)
-    const enrollments = await Enrollment.find({
-      $or: [{ email: user.email }, { user: user._id }],
-    }).sort({ createdAt: -1 });
+ // All enrollments for this account: same email and/or linked at signup (multi-child families)
+ const enrollments = await Enrollment.find({
+ $or: [{ email: user.email }, { user: user._id }],
+ }).sort({ createdAt: -1 }).limit(200).lean();
 
-    // Get course details for each enrollment
-    const courseIds = [...new Set(enrollments.map((e) => e.courseId))];
-    const courses = await Course.find({ slug: { $in: courseIds }, isActive: true });
-    const courseMap = {};
-    courses.forEach((c) => {
-      courseMap[c.slug] = {
-        slug: c.slug,
-        title: c.title,
-        description: c.description,
-        category: c.category,
-        level: c.level,
-        lessons: c.lessons,
-        durationWeeks: c.durationWeeks,
-        iconName: c.iconName,
-        color: c.color,
-      };
-    });
+ // Get course details for each enrollment
+ const courseIds = [...new Set(enrollments.map((e) => e.courseId))];
+ const courses = await Course.find({ slug: { $in: courseIds }, isActive: true })
+ .select("slug title description category level lessons durationWeeks iconName color")
+ .lean();
+ const courseMap = {};
+ courses.forEach((c) => {
+ courseMap[c.slug] = {
+ slug: c.slug,
+ title: c.title,
+ description: c.description,
+ category: c.category,
+ level: c.level,
+ lessons: c.lessons,
+ durationWeeks: c.durationWeeks,
+ iconName: c.iconName,
+ color: c.color,
+ };
+ });
 
-    // Enrich enrollments with course data
-    const enrichedEnrollments = enrollments.map((e) => ({
-      ...e.toObject(),
-      course: courseMap[e.courseId] || null,
-    }));
+ // Enrich enrollments with course data
+ const enrichedEnrollments = enrollments.map((e) => ({
+ ...e,
+ course: courseMap[e.courseId] || null,
+ }));
 
-    // Compute stats
-    const activeEnrollments = enrollments.filter((e) => ["active", "confirmed"].includes(e.status));
-    const completedEnrollments = enrollments.filter((e) => e.status === "completed");
-    const totalLessons = courses.reduce((sum, c) => {
-      const enrolled = enrollments.find((e) => e.courseId === c.slug && ["active", "confirmed", "completed"].includes(e.status));
-      return sum + (enrolled ? c.lessons : 0);
-    }, 0);
+ // Compute stats
+ const activeEnrollments = enrollments.filter((e) => ["active", "confirmed"].includes(e.status));
+ const completedEnrollments = enrollments.filter((e) => e.status === "completed");
+ const totalLessons = courses.reduce((sum, c) => {
+ const enrolled = enrollments.find((e) => e.courseId === c.slug && ["active", "confirmed", "completed"].includes(e.status));
+ return sum + (enrolled ? c.lessons : 0);
+ }, 0);
 
-    const stats = {
-      coursesEnrolled: activeEnrollments.length + completedEnrollments.length,
-      activeCourses: activeEnrollments.length,
-      completedCourses: completedEnrollments.length,
-      totalLessons,
-      // Simulated until real progress tracking is built
-      hoursLearned: Math.round(totalLessons * 0.8),
-      badges: completedEnrollments.length * 2 + activeEnrollments.length,
-      streak: Math.min(activeEnrollments.length * 4, 30),
-    };
+ const stats = {
+ coursesEnrolled: activeEnrollments.length + completedEnrollments.length,
+ activeCourses: activeEnrollments.length,
+ completedCourses: completedEnrollments.length,
+ totalLessons,
+ // Simulated until real progress tracking is built
+ hoursLearned: Math.round(totalLessons * 0.8),
+ badges: completedEnrollments.length * 2 + activeEnrollments.length,
+ streak: Math.min(activeEnrollments.length * 4, 30),
+ };
 
-    // Get recommended courses (ones not yet enrolled in)
-    const enrolledSlugs = new Set(enrollments.map((e) => e.courseId));
-    const recommended = await Course.find({
-      isActive: true,
-      slug: { $nin: [...enrolledSlugs] },
-    })
-      .sort({ enrollmentCount: -1 })
-      .limit(4);
+ // Get recommended courses (ones not yet enrolled in)
+ const enrolledSlugs = new Set(enrollments.map((e) => e.courseId));
+ const recommended = await Course.find({
+ isActive: true,
+ slug: { $nin: [...enrolledSlugs] },
+ })
+ .select("slug title description category level lessons durationWeeks iconName color enrollmentCount price currency discountPercent imageUrl")
+ .sort({ enrollmentCount: -1 })
+ .limit(4)
+ .lean();
 
-    // Get instructor notes for this parent
-    const notes = await Note.find({ parentEmail: user.email })
-      .sort({ createdAt: -1 })
-      .limit(30);
+ // Get instructor notes for this parent
+ const notes = await Note.find({ parentEmail: user.email })
+ .sort({ createdAt: -1 })
+ .limit(30);
 
-    // Mark unread notes as read
-    const unreadIds = notes.filter((n) => !n.readByParent).map((n) => n._id);
-    if (unreadIds.length > 0) {
-      await Note.updateMany({ _id: { $in: unreadIds } }, { readByParent: true });
-    }
+ // Mark unread notes as read
+ const unreadIds = notes.filter((n) => !n.readByParent).map((n) => n._id);
+ if (unreadIds.length > 0) {
+ await Note.updateMany({ _id: { $in: unreadIds } }, { readByParent: true });
+ }
 
-    res.json({
-      profile: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        phone: user.phone,
-        role: user.role,
-        children: user.children || [],
-        createdAt: user.createdAt,
-      },
-      stats,
-      enrollments: enrichedEnrollments,
-      notes,
-      unreadNotes: unreadIds.length,
-      recommended,
-    });
-  } catch (error) {
-    sendServerError(res, error);
-  }
+ res.json({
+ profile: {
+ id: user._id,
+ name: user.name,
+ email: user.email,
+ phone: user.phone,
+ role: user.role,
+ children: user.children || [],
+ createdAt: user.createdAt,
+ },
+ stats,
+ enrollments: enrichedEnrollments,
+ notes,
+ unreadNotes: unreadIds.length,
+ recommended,
+ });
+ } catch (error) {
+ sendServerError(res, error);
+ }
 };
 
 /**
@@ -123,25 +127,25 @@ exports.dashboard = async (req, res) => {
  * Add or update children on parent profile.
  */
 exports.updateChildren = async (req, res) => {
-  try {
-    const { children } = req.body;
-    if (!Array.isArray(children)) {
-      return res.status(400).json({ message: "children must be an array" });
-    }
+ try {
+ const { children } = req.body;
+ if (!Array.isArray(children)) {
+ return res.status(400).json({ message: "children must be an array" });
+ }
 
-    const existing = await User.findById(req.user.id).select("-password");
-    if (!assertParentPortalUser(existing, res)) return;
+ const existing = await User.findById(req.user.id).select("-password");
+ if (!assertParentPortalUser(existing, res)) return;
 
-    const user = await User.findByIdAndUpdate(
-      req.user.id,
-      { children },
-      { new: true, runValidators: true }
-    ).select("-password");
+ const user = await User.findByIdAndUpdate(
+ req.user.id,
+ { children },
+ { new: true, runValidators: true }
+ ).select("-password");
 
-    res.json({ children: user.children });
-  } catch (error) {
-    sendServerError(res, error);
-  }
+ res.json({ children: user.children });
+ } catch (error) {
+ sendServerError(res, error);
+ }
 };
 
 /**
@@ -149,22 +153,22 @@ exports.updateChildren = async (req, res) => {
  * Update parent's own profile (name, phone).
  */
 exports.updateProfile = async (req, res) => {
-  try {
-    const { name, phone } = req.body;
-    const update = {};
-    if (name) update.name = name;
-    if (phone) update.phone = phone;
+ try {
+ const { name, phone } = req.body;
+ const update = {};
+ if (name) update.name = name;
+ if (phone) update.phone = phone;
 
-    const existing = await User.findById(req.user.id).select("-password");
-    if (!assertParentPortalUser(existing, res)) return;
+ const existing = await User.findById(req.user.id).select("-password");
+ if (!assertParentPortalUser(existing, res)) return;
 
-    const user = await User.findByIdAndUpdate(req.user.id, update, {
-      new: true,
-      runValidators: true,
-    }).select("-password");
+ const user = await User.findByIdAndUpdate(req.user.id, update, {
+ new: true,
+ runValidators: true,
+ }).select("-password");
 
-    res.json(user);
-  } catch (error) {
-    sendServerError(res, error);
-  }
+ res.json(user);
+ } catch (error) {
+ sendServerError(res, error);
+ }
 };
