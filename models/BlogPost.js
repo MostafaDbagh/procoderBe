@@ -19,7 +19,7 @@ const blogPostSchema = new mongoose.Schema(
     coverImagePublicId: { type: String, default: "" },
     category: {
       type: String,
-      enum: ["coding", "robotics", "quran", "arabic", "parenting", "stem", "general"],
+      enum: ["coding", "robotics", "arabic", "parenting", "stem", "general"],
       default: "general",
     },
     tags: [String],

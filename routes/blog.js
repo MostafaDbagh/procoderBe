@@ -23,7 +23,7 @@ router.post(
     body("excerpt.ar").trim().notEmpty(),
     body("body.en").trim().notEmpty(),
     body("body.ar").trim().notEmpty(),
-    body("category").optional().isIn(["coding", "robotics", "quran", "arabic", "parenting", "stem", "general"]),
+    body("category").optional().isIn(["coding", "robotics", "arabic", "parenting", "stem", "general"]),
     body("author.name").trim().notEmpty(),
   ]),
   blogController.create
