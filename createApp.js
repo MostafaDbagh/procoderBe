@@ -2,8 +2,11 @@ const path = require("path");
 const fs = require("fs");
 const express = require("express");
 const cors = require("cors");
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
 const compression = require("compression");
 const { recommend } = require("./controllers/recommendController");
+const { recommendLimiter } = require("./middleware/antispam");
 
 function allowedOriginsSet() {
   const set = new Set();
@@ -35,15 +38,39 @@ function createApp() {
     app.set("trust proxy", 1);
   }
 
+  // ── Security headers ──
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          imgSrc: ["'self'", "data:", "https://res.cloudinary.com"],
+          connectSrc: ["'self'"],
+          fontSrc: ["'self'"],
+          objectSrc: ["'none'"],
+          frameAncestors: ["'none'"],
+        },
+      },
+      crossOriginEmbedderPolicy: false,
+    })
+  );
+
+  // ── CORS ──
+  const isProd = process.env.NODE_ENV === "production";
   app.use(
     cors({
       origin: function (origin, callback) {
         if (!origin) return callback(null, true);
-        if (
-          origin.match(/^http:\/\/localhost:\d+$/) ||
-          origin.match(/^http:\/\/127\.0\.0\.1:\d+$/)
-        ) {
-          return callback(null, true);
+        // In production, only allow explicit origins — no localhost
+        if (!isProd) {
+          if (
+            origin.match(/^http:\/\/localhost:(3000|5000)$/) ||
+            origin.match(/^http:\/\/127\.0\.0\.1:(3000|5000)$/)
+          ) {
+            return callback(null, true);
+          }
         }
         const normalized = origin.replace(/\/$/, "");
         if (allowedOrigins.has(normalized)) {
@@ -55,14 +82,39 @@ function createApp() {
     })
   );
 
+  // ── HTTPS enforcement in production ──
+  if (isProd) {
+    app.use((req, res, next) => {
+      if (req.headers["x-forwarded-proto"] !== "https") {
+        return res.redirect(301, `https://${req.headers.host}${req.url}`);
+      }
+      res.setHeader(
+        "Strict-Transport-Security",
+        "max-age=31536000; includeSubDomains; preload"
+      );
+      next();
+    });
+  }
+
+  // ── Global rate limit: 100 requests per 15 min per IP ──
+  app.use(
+    rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: isProd ? 100 : 1000,
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: { message: "Too many requests, please try again later" },
+    })
+  );
+
   app.use(compression());
-  app.use(express.json({ limit: "10mb" }));
+  app.use(express.json({ limit: "1mb" }));
 
   const uploadsRoot = path.join(__dirname, "uploads");
   fs.mkdirSync(path.join(uploadsRoot, "team"), { recursive: true });
   app.use("/uploads", express.static(uploadsRoot));
 
-  app.post("/api/recommend", recommend);
+  app.post("/api/recommend", recommendLimiter, recommend);
 
   app.use("/api/auth", require("./routes/auth"));
   app.use("/api/categories", require("./routes/categories"));
@@ -83,11 +135,7 @@ function createApp() {
   });
 
   app.use("/api", (req, res) => {
-    res.status(404).json({
-      error: "Not Found",
-      method: req.method,
-      path: req.originalUrl,
-    });
+    res.status(404).json({ error: "Not Found" });
   });
 
   return app;

@@ -6,8 +6,9 @@ function parsePagination(query, opts = {}) {
   const defaultLimit = opts.defaultLimit ?? 15;
   const maxLimit = opts.maxLimit ?? 100;
 
+  const maxPage = opts.maxPage ?? 10000;
   const pageRaw = parseInt(String(query.page ?? "1"), 10);
-  const page = Number.isFinite(pageRaw) && pageRaw > 0 ? pageRaw : 1;
+  const page = Number.isFinite(pageRaw) && pageRaw > 0 ? Math.min(pageRaw, maxPage) : 1;
 
   let limitRaw = parseInt(String(query.limit ?? ""), 10);
   if (!Number.isFinite(limitRaw) || limitRaw < 1) {

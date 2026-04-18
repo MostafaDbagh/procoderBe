@@ -5,6 +5,7 @@ const auth = async (req, res, next) => {
   const token = req.header("Authorization")?.replace("Bearer ", "");
 
   if (!token) {
+    console.warn(`[auth] denied: no token | ${req.method} ${req.originalUrl} | IP ${req.ip}`);
     return res.status(401).json({ message: "No token, authorization denied" });
   }
 
@@ -12,6 +13,7 @@ const auth = async (req, res, next) => {
   try {
     decoded = jwt.verify(token, process.env.JWT_SECRET);
   } catch {
+    console.warn(`[auth] denied: invalid token | ${req.method} ${req.originalUrl} | IP ${req.ip}`);
     return res.status(401).json({ message: "Token is not valid" });
   }
 

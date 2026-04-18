@@ -36,10 +36,10 @@ router.patch(
       .optional()
       .isIn(["parent", "student", "instructor", "admin"]),
     body("isActive").optional().isBoolean(),
-    body("name").optional().trim().notEmpty(),
-    body("phone").optional().trim(),
-    body("specialties").optional().isArray(),
-    body("bio").optional().trim(),
+    body("name").optional().trim().notEmpty().isLength({ max: 100 }),
+    body("phone").optional().trim().matches(/^\+?[\d\s()-]{8,20}$/).withMessage("Invalid phone number format"),
+    body("specialties").optional().isArray({ max: 20 }),
+    body("bio").optional().trim().isLength({ max: 2000 }).withMessage("Bio too long (max 2000 characters)"),
     body("assignedCourses").optional().isArray(),
   ]),
   adminUserController.patch
@@ -51,7 +51,16 @@ router.post(
   adminOnly,
   validate([
     param("id").isMongoId(),
-    body("newPassword").trim().isLength({ min: 8 }),
+    body("newPassword")
+      .trim()
+      .isLength({ min: 10 })
+      .withMessage("Admin password must be at least 10 characters")
+      .matches(/[A-Z]/)
+      .withMessage("Password must contain at least one uppercase letter")
+      .matches(/[a-z]/)
+      .withMessage("Password must contain at least one lowercase letter")
+      .matches(/\d/)
+      .withMessage("Password must contain at least one number"),
   ]),
   adminUserController.resetPassword
 );
@@ -68,7 +77,13 @@ router.post(
       .optional({ values: "falsy" })
       .trim()
       .isLength({ min: 8 })
-      .withMessage("password must be at least 8 characters when set"),
+      .withMessage("password must be at least 8 characters when set")
+      .matches(/[A-Z]/)
+      .withMessage("Password must contain at least one uppercase letter")
+      .matches(/[a-z]/)
+      .withMessage("Password must contain at least one lowercase letter")
+      .matches(/\d/)
+      .withMessage("Password must contain at least one number"),
   ]),
   adminUserController.inviteInstructor
 );
@@ -148,7 +163,12 @@ router.post(
   validate([
     body("code").trim().notEmpty(),
     body("discountType").isIn(["percent", "fixed"]),
-    body("discountValue").isFloat({ gt: 0 }),
+    body("discountValue").isFloat({ gt: 0, max: 100000 }).custom((v, { req }) => {
+      if (req.body.discountType === "percent" && (v < 0 || v > 100)) {
+        throw new Error("Percent discount must be between 0 and 100");
+      }
+      return true;
+    }),
     body("currency")
       .optional()
       .trim()
@@ -201,7 +221,13 @@ router.patch(
   validate([
     param("id").isMongoId(),
     body("discountType").optional().isIn(["percent", "fixed"]),
-    body("discountValue").optional().isFloat({ gt: 0 }),
+    body("discountValue").optional().isFloat({ gt: 0, max: 100000 }).custom((v, { req }) => {
+      const dt = req.body.discountType;
+      if (dt === "percent" && (v < 0 || v > 100)) {
+        throw new Error("Percent discount must be between 0 and 100");
+      }
+      return true;
+    }),
     body("currency")
       .optional()
       .trim()

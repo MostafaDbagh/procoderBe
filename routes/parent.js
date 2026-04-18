@@ -20,8 +20,8 @@ router.put(
 router.put(
   "/profile",
   validate([
-    body("name").optional().trim().notEmpty(),
-    body("phone").optional().trim().notEmpty(),
+    body("name").optional().trim().notEmpty().isLength({ max: 100 }).withMessage("Name too long"),
+    body("phone").optional().trim().notEmpty().matches(/^\+?[\d\s()-]{8,20}$/).withMessage("Invalid phone number format"),
   ]),
   parentController.updateProfile
 );

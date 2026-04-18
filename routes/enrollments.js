@@ -4,17 +4,21 @@ const validate = require("../middleware/validate");
 const enrollmentController = require("../controllers/enrollmentController");
 const auth = require("../middleware/auth");
 const adminOnly = require("../middleware/adminOnly");
+const { honeypot, timingGate, enrollmentLimiter } = require("../middleware/antispam");
 
 const router = express.Router();
 
 router.post(
   "/",
+  enrollmentLimiter,
+  honeypot,
+  timingGate(5000),
   validate([
-    body("parentName").trim().notEmpty(),
+    body("parentName").trim().notEmpty().isLength({ max: 100 }),
     body("email").isEmail(),
-    body("phone").trim().notEmpty(),
-    body("relationship").trim().notEmpty(),
-    body("childName").trim().notEmpty(),
+    body("phone").trim().notEmpty().matches(/^\+?[\d\s()-]{8,20}$/).withMessage("Invalid phone number format"),
+    body("relationship").trim().notEmpty().isLength({ max: 50 }),
+    body("childName").trim().notEmpty().isLength({ max: 100 }),
     body("childAge").isInt({ min: 6, max: 18 }),
     body("gradeLevel").trim().notEmpty(),
     body("courseId").trim().notEmpty(),

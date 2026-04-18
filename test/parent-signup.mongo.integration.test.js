@@ -99,7 +99,7 @@ describe("Parent signup + multi-child (MongoDB)", { skip: !canRun }, () => {
       .send({
         name: "Integration Parent",
         email: emailMulti,
-        password: "secretpass123",
+        password: "SecretPass123",
         phone: "+15550001111",
       });
 
@@ -136,7 +136,7 @@ describe("Parent signup + multi-child (MongoDB)", { skip: !canRun }, () => {
       .send({
         name: "Phone Match Parent",
         email: emailSignupPhoneFlow,
-        password: "secretpass123",
+        password: "SecretPass123",
         phone: "+966501999888",
       });
 

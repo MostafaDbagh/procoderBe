@@ -87,16 +87,17 @@ exports.login = async (req, res) => {
  const { email, password } = req.body;
 
  const user = await User.findOne({ email }).select("+password");
- if (!user) {
+ // Timing-safe: always run bcrypt compare even if user not found
+ // to prevent email enumeration via response time differences
+ const bcrypt = require("bcryptjs");
+ const dummyHash = "$2a$12$000000000000000000000uGWDDnVVG2e0sweOaGMeJjhtPsG.gIEC";
+ const isMatch = await bcrypt.compare(password, user?.password || dummyHash);
+ if (!user || !isMatch) {
+ console.warn(`[auth] login failed | email=${email} | IP ${req.ip}`);
  return res.status(400).json({ message: "Invalid credentials" });
  }
  if (user.isActive === false) {
  return res.status(403).json({ message: "Account deactivated" });
- }
-
- const isMatch = await user.comparePassword(password);
- if (!isMatch) {
- return res.status(400).json({ message: "Invalid credentials" });
  }
 
  const token = signToken(user);
