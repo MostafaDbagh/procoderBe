@@ -1,5 +1,6 @@
 const Course = require("../models/Course");
 const User = require("../models/User");
+const Team = require("../models/Team");
 const Enrollment = require("../models/Enrollment");
 const { sendServerError } = require("../utils/safeErrorResponse");
 const { parsePagination, paginationMeta } = require("../utils/pagination");
@@ -90,14 +91,13 @@ exports.listAdmin = async (req, res) => {
  ];
  let instructorMap = {};
  if (allInstructorIds.length > 0) {
- const instructors = await User.find({
- _id: { $in: allInstructorIds },
- })
- .select("_id name")
- .lean();
- instructorMap = Object.fromEntries(
- instructors.map((i) => [String(i._id), i.name])
- );
+ // Look up in both User and Team collections (instructors may come from either)
+ const [users, teamMembers] = await Promise.all([
+ User.find({ _id: { $in: allInstructorIds } }).select("_id name").lean(),
+ Team.find({ _id: { $in: allInstructorIds } }).select("_id name").lean(),
+ ]);
+ for (const u of users) instructorMap[String(u._id)] = u.name;
+ for (const t of teamMembers) instructorMap[String(t._id)] = t.name?.en || t.name;
  }
  const items = courses.map((c) => ({
  ...c,
