@@ -434,6 +434,8 @@ const ADJECTIVE_DICTIONARY = [
  "loves lego", "lego", "loves assembling", "tinkers", "takes things apart",
  "loves making things", "diy", "building robots", "building things",
  "making things", "interested in building", "interested in robot",
+ "dreams of building", "dreams of making", "dreams of creating",
+ "own robot", "her own robot", "his own robot",
  "يحب يسوي اشياء", "يحب يركب", "يحب الليقو", "يحب التركيب",
  "يفك ويركب", "يحب الاشغال اليدويه", "يحب يبني",
  ]},
@@ -465,7 +467,9 @@ const ADJECTIVE_DICTIONARY = [
  ]},
  { trait: "ambitious", tokens: [
  "ambitious", "wants a career", "career", "future goals", "driven",
- "wants to be", "dreams of", "aspires",
+ "wants to be", "aspires",
+ // Avoid "dreams of" alone — it matches "dreams of building a robot" and hides hands-on STEM intent.
+ "dreams of being", "dreams of becoming", "dream to be", "dream to become",
  "طموح", "طموحه", "يبي يصير", "تبي تصير", "مستقبل",
  "يحلم", "عنده طموح",
  ]},
@@ -544,15 +548,17 @@ const INTEREST_KEYWORDS = {
  programming: ["programming", "developer", "مبرمج", "تطوير"],
  robots: ["robot", "robots", "robotics", "روبوت", "روبوتات", "الروبوت"],
  games: ["games", "gaming", "game", "العاب", "قيم", "لعب", "minecraft", "ماينكرافت", "roblox", "روبلوكس", "fortnite", "فورتنايت"],
- arabic: ["arabic", "qur'an", "القران", "قران", "تعبير", "arabic expression", "حفظ", "تلاوه", "arabic writing", "recitation", "memoriz"],
- arabic: ["arabic", "عربي", "العربيه", "قراءه عربي", "كتابه عربي", "قواعد", "نحو"],
+ arabic: [
+ "arabic", "qur'an", "القران", "قران", "تعبير", "arabic expression", "حفظ", "تلاوه", "arabic writing",
+ "recitation", "memoriz", "عربي", "العربيه", "قراءه عربي", "كتابه عربي", "قواعد", "نحو",
+ ],
  science: ["science", "علوم", "تجارب", "فيزياء", "كيمياء", "physics", "chemistry", "biology"],
  math: ["math", "maths", "mathematics", "رياضيات", "حساب", "ارقام"],
  drawing: ["drawing", "draw", "رسم", "يرسم", "sketch", "paint"],
  art: ["loves art", "artistic", "art class", "فن", "فنون"],
  sports: ["sport", "sports", "رياضه", "كوره", "football", "soccer", "swimming"],
  building: ["building", "build", "بناء", "يبني", "تركيب", "lego", "ليقو"],
- electronics: ["electronics", "electronic", "الكترونيات", "كهرباء", "circuits"],
+ electronics: ["electronics", "electronic", "arduino", "الكترونيات", "كهرباء", "circuits"],
  computers: ["computer", "computers", "كمبيوتر", "حاسوب", "لابتوب", "laptop", "ipad", "ايباد"],
  technology: ["technology", "tech", "تكنولوجيا", "تقنيه"],
  web: ["web", "website", "موقع", "مواقع", "html", "css"],
@@ -561,6 +567,13 @@ const INTEREST_KEYWORDS = {
  ai: ["ai", "artificial intelligence", "ذكاء اصطناعي", "machine learning"],
 };
 
+function interestKeywordMatches(normalized, lower, kw) {
+ if (typeof kw !== "string" || kw.length === 0) return false;
+ // Substring match for "ai" hits words like "said", "wait", "fair"
+ if (kw === "ai") return /(?:^|[^a-z])ai(?:$|[^a-z])/i.test(lower);
+ return normalized.includes(kw) || lower.includes(kw);
+}
+
 function extractInterests(text) {
  const normalized = normalizeText(text);
  const lower = text.toLowerCase();
@@ -568,7 +581,7 @@ function extractInterests(text) {
 
  for (const [interest, keywords] of Object.entries(INTEREST_KEYWORDS)) {
  for (const kw of keywords) {
- if (normalized.includes(kw) || lower.includes(kw)) {
+ if (interestKeywordMatches(normalized, lower, kw)) {
  found.add(interest);
  break;
  }
@@ -628,7 +641,20 @@ const GOAL_PATTERNS = [
  { goal: "find_hobby", patterns: ["hobby", "something to do", "after school", "هوايه", "نشاط", "بعد المدرسه"] },
  { goal: "build_games", patterns: ["build game", "make game", "create game", "يسوي لعب", "يبني لعب", "يصنع العاب"] },
  { goal: "build_websites", patterns: ["build website", "make website", "create website", "يسوي موقع", "يبني موقع"] },
- { goal: "build_robots", patterns: ["build robot", "make robot", "يسوي روبوت", "يبني روبوت"] },
+ {
+ goal: "build_robots",
+ patterns: [
+ "build robot",
+ "building robot",
+ "make robot",
+ "own robot",
+ "dreams of building",
+ "building her own robot",
+ "building his own robot",
+ "يسوي روبوت",
+ "يبني روبوت",
+ ],
+ },
 ];
 
 function extractGoals(text) {
@@ -808,8 +834,7 @@ const INTEREST_COURSE_MAP = {
  programming: ["scratch", "python", "webdev", "gamedev"],
  robots: ["robot-basics", "robot-advanced"],
  games: ["gamedev", "scratch"],
- arabic: ["arabic-recitation", "arabic-memorization"],
- arabic: ["arabic-reading", "arabic-grammar"],
+ arabic: ["arabic-recitation", "arabic-memorization", "arabic-reading", "arabic-grammar"],
  science: ["robot-basics", "robot-advanced", "python"],
  math: ["algo-intro", "algo-competitive", "python"],
  drawing: ["scratch", "gamedev", "webdev"],
@@ -824,6 +849,13 @@ const INTEREST_COURSE_MAP = {
  ai: ["python", "robot-advanced"],
  sports: ["robot-basics"],
 };
+
+/** Parsed interests that imply STEM / creative-tech; used to avoid Arabic catalog as an age-only fallback. */
+const NON_ARABIC_FOCUS_INTERESTS = new Set([
+ "coding", "programming", "robots", "games", "building", "electronics",
+ "computers", "technology", "web", "design", "animation", "ai",
+ "science", "math", "drawing", "art", "sports",
+]);
 
 function scoreCourses(profile, courses) {
  return courses.map((course) => {
@@ -860,6 +892,13 @@ function scoreCourses(profile, courses) {
  }
  }
 
+ const interests = profile.interests || [];
+ const wantsArabic = interests.includes("arabic");
+ const hasNonArabicFocus = interests.some((i) => NON_ARABIC_FOCUS_INTERESTS.has(i));
+ if (hasNonArabicFocus && !wantsArabic && course.category === "arabic") {
+ score -= 18;
+ }
+
  // ── EXPERIENCE LEVEL ──
  if (profile.experience_level) {
  const map = { none: "beginner", beginner: "beginner", intermediate: "intermediate", advanced: "advanced" };
@@ -873,12 +912,12 @@ function scoreCourses(profile, courses) {
  // ── LEARNING STYLE BONUS ──
  if (profile.learning_style === "kinesthetic" && course.category === "robotics") score += 5;
  if (profile.learning_style === "visual" && course.category === "programming") score += 3;
- if (profile.learning_style === "auditory" && ["arabic", "arabic"].includes(course.category)) score += 5;
+ if (profile.learning_style === "auditory" && course.category === "arabic") score += 5;
  if (profile.learning_style === "reading_writing" && ["algorithms", "arabic"].includes(course.category)) score += 3;
 
  // ── ENERGY LEVEL ──
  if (profile.energy_level === "high" && course.category === "robotics") score += 4;
- if (profile.energy_level === "low" && ["arabic", "arabic", "algorithms"].includes(course.category)) score += 3;
+ if (profile.energy_level === "low" && ["arabic", "algorithms"].includes(course.category)) score += 3;
 
  // ── SPECIAL NEEDS ADJUSTMENTS ──
  if (profile.special_needs) {

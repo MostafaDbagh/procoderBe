@@ -7,6 +7,22 @@
 const { validateAndNormalizeProfile, mergeProfiles } = require("../config/childProfileSchema");
 const { enrichProfileWithEvidenceContext } = require("../config/evidenceBasedFramework");
 
+/** Strip LLM-hallucinated `arabic` when the parent text clearly describes STEM/robotics but never mentions Arabic/Quranic study. */
+const EXPLICIT_ARABIC_CONTEXT_RE =
+  /arabic|qur['']?an|quran|كتاب\s*الله|عربي|العربيه|تلاو|تجويد|حفظ|نحو|قواعد|مسجد|إسلام|islam|tajweed/i;
+const STEM_ROBOT_CONTEXT_RE =
+  /\brobot(s|ics)?\b|روبوت|\b(build|building|make|making|design|designing)\b[\s\S]{0,48}\brobot(s|ics)?\b|\brobot(s|ics)?\b[\s\S]{0,48}\b(build|building|make|making)\b/i;
+
+function reconcileInterestsWithParentText(sanitized, mergedProfile) {
+  if (!mergedProfile || !Array.isArray(mergedProfile.interests)) return;
+  const hasArabicScript = /[\u0600-\u06FF]/.test(sanitized);
+  const explicitArabic = hasArabicScript || EXPLICIT_ARABIC_CONTEXT_RE.test(sanitized);
+  const robotStem = STEM_ROBOT_CONTEXT_RE.test(sanitized);
+  if (robotStem && !explicitArabic) {
+    mergedProfile.interests = mergedProfile.interests.filter((i) => i !== "arabic");
+  }
+}
+
 function sanitizeParentInput(text) {
   if (typeof text !== "string") return "";
   let t = text.slice(0, 2000);
@@ -148,7 +164,9 @@ async function parseWithGate(text, locale = "en", options = {}) {
   }
 
   if (!llmNorm) return enrichProfileWithEvidenceContext(local);
-  return enrichProfileWithEvidenceContext(mergeProfiles(local, llmNorm));
+  const merged = mergeProfiles(local, llmNorm);
+  reconcileInterestsWithParentText(sanitized, merged);
+  return enrichProfileWithEvidenceContext(merged);
 }
 
 module.exports = {
@@ -156,4 +174,5 @@ module.exports = {
   sanitizeParentInput,
   validateAndNormalizeProfile,
   mergeProfiles,
+  reconcileInterestsWithParentText,
 };
