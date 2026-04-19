@@ -45,6 +45,7 @@ exports.list = async (req, res) => {
  { $project: { instructors: 0 } },
  { $sort: { category: 1, ageMin: 1 } },
  ]);
+ res.set("Cache-Control", "public, max-age=60, s-maxage=300");
  res.json(courses);
  } catch (error) {
  sendServerError(res, error);

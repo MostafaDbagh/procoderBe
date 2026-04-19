@@ -17,6 +17,7 @@ exports.list = async (req, res) => {
  { $replaceRoot: { newRoot: "$doc" } },
  { $sort: { sortOrder: 1, slug: 1 } },
  ]);
+ res.set("Cache-Control", "public, max-age=60, s-maxage=300");
  res.json(rows);
  } catch (error) {
  sendServerError(res, error);

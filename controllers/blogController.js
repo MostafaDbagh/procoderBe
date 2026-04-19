@@ -22,6 +22,7 @@ exports.listPublished = async (req, res) => {
  .limit(limit)
  .lean(),
  ]);
+ res.set("Cache-Control", "public, max-age=60, s-maxage=300");
  res.json({ items: posts, ...paginationMeta(total, page, limit) });
  } catch (error) {
  sendServerError(res, error);
