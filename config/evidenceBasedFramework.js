@@ -25,7 +25,7 @@ const DEVELOPMENTAL_BANDS = [
     label_en: "Early childhood (ages 3-7): concrete, story- and play-based learning",
     cognitive_focus: ["symbolic_play", "emerging_logical_concrete", "short_instructional_units"],
     social_emotional: ["trust_practice", "autonomy_support", "low_evaluative_pressure"],
-    high_scaffolding_slugs: ["scratch", "arabic-reading", "quran-recitation", "robot-basics"],
+    high_scaffolding_slugs: ["scratch", "arabic-reading", "robot-basics"],
     low_ef_penalty_slugs: ["algo-competitive", "webdev"],
   },
   {
@@ -86,8 +86,6 @@ const COURSE_EF_DEMAND = {
   "algo-competitive": 8,
   "arabic-reading": 3,
   "arabic-grammar": 6,
-  "quran-recitation": 4,
-  "quran-memorization": 7,
 };
 
 function bandForAge(age) {
@@ -165,7 +163,7 @@ function evidenceScoringDelta(profile, course) {
   if ([...SENSORY_SEEKING].some((t) => adj.has(t)) && ["robot-basics", "robot-advanced", "scratch"].includes(slug)) {
     d += 2;
   }
-  if ([...SENSORY_AVOIDANT].some((t) => adj.has(t)) && ["quran-recitation", "arabic-reading", "scratch"].includes(slug)) {
+  if ([...SENSORY_AVOIDANT].some((t) => adj.has(t)) && ["arabic-reading", "scratch"].includes(slug)) {
     d += 2;
   }
 

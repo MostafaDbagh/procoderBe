@@ -37,7 +37,7 @@ async function seedUsers() {
       role: "parent",
       children: [
         { name: "Ali", age: 10, gender: "male", gradeLevel: "4-6", interests: ["programming", "robotics"] },
-        { name: "Noor", age: 7, gender: "female", gradeLevel: "1-3", interests: ["arabic", "quran"] },
+        { name: "Noor", age: 7, gender: "female", gradeLevel: "1-3", interests: ["arabic"] },
       ],
     });
     console.log(`Created parent: ${parent.email}`);

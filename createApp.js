@@ -96,14 +96,16 @@ function createApp() {
     });
   }
 
-  // ── Global rate limit: 100 requests per 15 min per IP ──
+  // ── Global rate limit ──
+  // Skip for authenticated requests (admin dashboard makes many rapid calls)
   app.use(
     rateLimit({
       windowMs: 15 * 60 * 1000,
-      max: isProd ? 100 : 1000,
+      max: isProd ? 300 : 5000,
       standardHeaders: true,
       legacyHeaders: false,
       message: { message: "Too many requests, please try again later" },
+      skip: (req) => !!req.headers.authorization,
     })
   );
 
