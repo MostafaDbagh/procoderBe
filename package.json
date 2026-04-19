@@ -11,6 +11,7 @@
     "seed:users": "node seed-users.js",
     "seed:challenge": "node scripts/seed-monthly-challenge.js",
     "seed:categories": "node scripts/seed-categories.js",
+    "seed:blogs": "node scripts/seed-blogs.js",
     "seed:team": "node scripts/seed-team.js",
     "seed:admin": "node scripts/seed-admin.js",
     "seed:admin:mock": "MOCK_ADMIN=1 node scripts/seed-admin.js",

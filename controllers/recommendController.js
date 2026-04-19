@@ -425,7 +425,7 @@ const ADJECTIVE_DICTIONARY = [
  "loves ipad", "loves tablet", "loves phone", "always on screen",
  "in tech", "career in tech", "web design", "web development",
  "interested in ai", "interested in tech", "interested in computer",
- "يحب التكنولوجيا", "يحب الكمبيوتر", "بيحب الكمبيوتر", "يحب الايباد", "يحب الجوال",
+ "يحب التكنولوجيا", "يحب الكمبيوتر", "بيحب الكمبيوتر", "يحب الايباد", "يحب الموبايل",
  "يحب التقنيه", "تقني", "تحب التصميم", "يحب التصميم",
  "تحب التكنولوجيا", "الكمبيوتر", "كمبيوتر",
  ]},
@@ -1169,13 +1169,13 @@ const COURSE_NAMES_EN = {
 };
 
 const COURSE_NAMES_AR = {
- scratch: "برمجة سكراتش", python: "بايثون للأطفال", webdev: "تطوير الويب",
+ scratch: "برمجة سكراتش", python: "بايثون للأطفال", webdev: "تطوير مواقع ويب",
  "robot-basics": "بناة الروبوتات", "robot-advanced": "روبوتات متقدمة",
  "algo-intro": "مغامرات الخوارزميات", "algo-competitive": "البرمجة التنافسية",
  "arabic-reading": "القراءة والكتابة العربية", "arabic-grammar": "قواعد اللغة العربية",
  "arabic-recitation": "قراءة العربية", "arabic-memorization": "حفظ العربية",
  gamedev: "تطوير الألعاب",
- mobappdev: "تطوير تطبيقات الجوال",
+ mobappdev: "تطوير تطبيقات الموبايل",
 };
 
 function generateMessage(profile, recommendedSlugs, locale) {
