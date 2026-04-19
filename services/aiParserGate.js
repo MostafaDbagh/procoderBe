@@ -13,6 +13,39 @@ const EXPLICIT_ARABIC_CONTEXT_RE =
 const STEM_ROBOT_CONTEXT_RE =
   /\brobot(s|ics)?\b|روبوت|\b(build|building|make|making|design|designing)\b[\s\S]{0,48}\brobot(s|ics)?\b|\brobot(s|ics)?\b[\s\S]{0,48}\b(build|building|make|making)\b/i;
 
+/** Parent text suggests physical building / tinkering (even without the word "robot"). */
+const TACTILE_BUILDING_CONTEXT_RE =
+  /\b(building\s+things?|loves?\s+to\s+build|loves?\s+building|builder|lego|hands-on|hands\s+on|tactile|make\s+things|physical\s+projects?|diy\b|electronics\s+kit|يركب|ليقو|اشغال\s+يدويه)\b/i;
+
+/** LLM often adds these when the child is really a hands-on / robot kid; drop them unless the local parser also saw them. */
+const LLM_SCREEN_STACK_INTERESTS = new Set(["coding", "programming", "web", "ai", "computers", "technology"]);
+
+function localSignalsTactileOrRobotics(local) {
+  const adj = local.adjectives || [];
+  if (adj.includes("hands_on") || adj.includes("mechanical")) return true;
+  const intr = local.interests || [];
+  if (intr.some((i) => ["robots", "building", "electronics"].includes(i))) return true;
+  const goals = local.parent_goals || [];
+  if (goals.includes("build_robots")) return true;
+  return false;
+}
+
+function shouldDropLlmOnlyScreenInterests(sanitized, local) {
+  if (localSignalsTactileOrRobotics(local)) return true;
+  if (STEM_ROBOT_CONTEXT_RE.test(sanitized)) return true;
+  if (TACTILE_BUILDING_CONTEXT_RE.test(sanitized)) return true;
+  return false;
+}
+
+function reconcileLlmScreenInterestsForTactileChild(sanitized, local, mergedProfile) {
+  if (!mergedProfile || !Array.isArray(mergedProfile.interests)) return;
+  if (!shouldDropLlmOnlyScreenInterests(sanitized, local)) return;
+  const keep = new Set(local.interests || []);
+  mergedProfile.interests = mergedProfile.interests.filter(
+    (i) => !LLM_SCREEN_STACK_INTERESTS.has(i) || keep.has(i)
+  );
+}
+
 function reconcileInterestsWithParentText(sanitized, mergedProfile) {
   if (!mergedProfile || !Array.isArray(mergedProfile.interests)) return;
   const hasArabicScript = /[\u0600-\u06FF]/.test(sanitized);
@@ -21,6 +54,11 @@ function reconcileInterestsWithParentText(sanitized, mergedProfile) {
   if (robotStem && !explicitArabic) {
     mergedProfile.interests = mergedProfile.interests.filter((i) => i !== "arabic");
   }
+}
+
+function reconcileMergedProfileWithParentText(sanitized, local, mergedProfile) {
+  reconcileInterestsWithParentText(sanitized, mergedProfile);
+  reconcileLlmScreenInterestsForTactileChild(sanitized, local, mergedProfile);
 }
 
 function sanitizeParentInput(text) {
@@ -72,7 +110,11 @@ ${adjectiveList.slice(0, 200).join(", ")}
 Allowed interests (use only these):
 ${interestList.join(", ")}
 
-If unsure, use null or []. Never invent ages outside 3-20.`;
+If unsure, use null or []. Never invent ages outside 3-20.
+
+Important: If the parent emphasizes building, robots, LEGO, engineering, circuits, or hands-on projects, do NOT add coding, programming, web, computers, technology, or ai to interests unless they explicitly ask for software, apps, games, or websites. Physical builders map to robots/building/electronics only.
+
+If the parent describes science fairs, investigations, hypotheses, lab work, or research projects, include interest "research" (and science_oriented or curious in adjectives when it fits). For parent_goals you may use short snake_case strings that match the parent's intent (e.g. inquiry_research for inquiry / science-fair style goals).`;
 }
 
 async function parseStructuredOpenAI(sanitized, locale, systemPrompt) {
@@ -165,7 +207,7 @@ async function parseWithGate(text, locale = "en", options = {}) {
 
   if (!llmNorm) return enrichProfileWithEvidenceContext(local);
   const merged = mergeProfiles(local, llmNorm);
-  reconcileInterestsWithParentText(sanitized, merged);
+  reconcileMergedProfileWithParentText(sanitized, local, merged);
   return enrichProfileWithEvidenceContext(merged);
 }
 
@@ -175,4 +217,6 @@ module.exports = {
   validateAndNormalizeProfile,
   mergeProfiles,
   reconcileInterestsWithParentText,
+  reconcileMergedProfileWithParentText,
+  reconcileLlmScreenInterestsForTactileChild,
 };

@@ -442,7 +442,10 @@ const ADJECTIVE_DICTIONARY = [
  { trait: "science_oriented", tokens: [
  "loves science", "science lover", "loves experiments", "scientist",
  "loves chemistry", "loves physics", "loves biology",
+ "research", "loves research", "science fair", "science project", "investigation", "investigate",
+ "hypothesis", "scientific method", "inquiry project",
  "يحب العلوم", "يحب التجارب", "عالم صغير", "يحب الفيزياء",
+ "بحث علمي", "معرض علوم", "مشروع علمي",
  ]},
  { trait: "sporty", tokens: [
  "sporty", "athletic", "loves sports", "active in sports", "plays football",
@@ -546,14 +549,58 @@ function extractAdjectives(text) {
 const INTEREST_KEYWORDS = {
  coding: ["coding", "code", "برمجه", "يبرمج", "programming", "program"],
  programming: ["programming", "developer", "مبرمج", "تطوير"],
- robots: ["robot", "robots", "robotics", "روبوت", "روبوتات", "الروبوت"],
+ robots: [
+ "robot",
+ "robots",
+ "robotics",
+ "روبوت",
+ "روبوتات",
+ "الروبوت",
+ // Movement / high activity → physical, hands-on tracks (robotics) fit better than sit-and-code alone
+ "gross motor",
+ "fine motor",
+ "motion",
+ "movement",
+ ],
  games: ["games", "gaming", "game", "العاب", "قيم", "لعب", "minecraft", "ماينكرافت", "roblox", "روبلوكس", "fortnite", "فورتنايت"],
  arabic: [
  "arabic", "qur'an", "القران", "قران", "تعبير", "arabic expression", "حفظ", "تلاوه", "arabic writing",
  "recitation", "memoriz", "عربي", "العربيه", "قراءه عربي", "كتابه عربي", "قواعد", "نحو",
  ],
  science: ["science", "علوم", "تجارب", "فيزياء", "كيمياء", "physics", "chemistry", "biology"],
- math: ["math", "maths", "mathematics", "رياضيات", "حساب", "ارقام"],
+ research: [
+ "research",
+ "researcher",
+ "researching",
+ "science fair",
+ "science project",
+ "investigation",
+ "investigate",
+ "hypothesis",
+ "scientific method",
+ "field study",
+ "lab report",
+ "بحث",
+ "بحث علمي",
+ "معرض علوم",
+ "مشروع علمي",
+ "تجربه علميه",
+ "المنهج العلمي",
+ ],
+ math: [
+ "math",
+ "maths",
+ "mathematics",
+ "رياضيات",
+ "حساب",
+ "ارقام",
+ "problem solving",
+ "problem-solving",
+ "logical reasoning",
+ "brain teaser",
+ "puzzles",
+ "puzzle",
+ ],
  drawing: ["drawing", "draw", "رسم", "يرسم", "sketch", "paint"],
  art: ["loves art", "artistic", "art class", "فن", "فنون"],
  sports: ["sport", "sports", "رياضه", "كوره", "football", "soccer", "swimming"],
@@ -571,8 +618,16 @@ function interestKeywordMatches(normalized, lower, kw) {
  if (typeof kw !== "string" || kw.length === 0) return false;
  // Substring match for "ai" hits words like "said", "wait", "fair"
  if (kw === "ai") return /(?:^|[^a-z])ai(?:$|[^a-z])/i.test(lower);
+ // Avoid "promotion"/"emotion" false positives for "motion"
+ if (kw === "motion" || kw === "movement") {
+ return new RegExp(`(?:^|[^a-z])${kw}(?:$|[^a-z])`, "i").test(lower);
+ }
  return normalized.includes(kw) || lower.includes(kw);
 }
+
+/** Parent describes movement, motion, or high physical energy — nudge toward robotics. */
+const MOVEMENT_ROBOT_HINT =
+ /\b(movements?|in motion|physical motion|always moving|loves to move|needs to move|very active|physically active|high energy|full of energy|active kid|can't sit still|cant sit still|kinesthetic|learns by doing|نشيط|كثير الحركه|كثير الحركة|ما يهدى|ما يهدأ|يتحرك كثير)\b/i;
 
 function extractInterests(text) {
  const normalized = normalizeText(text);
@@ -586,6 +641,10 @@ function extractInterests(text) {
  break;
  }
  }
+ }
+
+ if (MOVEMENT_ROBOT_HINT.test(lower) || MOVEMENT_ROBOT_HINT.test(normalized)) {
+ found.add("robots");
  }
 
  return [...found];
@@ -637,7 +696,44 @@ const GOAL_PATTERNS = [
  { goal: "social_skills", patterns: ["social skills", "make friends", "مهارات اجتماعيه", "اصدقاء"] },
  { goal: "career_prep", patterns: ["career", "future job", "university", "مستقبل", "وظيفه", "جامعه"] },
  { goal: "improve_arabic", patterns: ["improve arabic", "learn arabic", "arabic better", "يتحسن عربي", "يتعلم عربي"] },
- { goal: "develop_thinking", patterns: ["think", "problem solv", "critical", "تفكير", "حل مشاكل"] },
+ {
+ goal: "inquiry_research",
+ patterns: [
+ "science fair",
+ "science project",
+ "research project",
+ "do research",
+ "doing research",
+ "loves research",
+ "investigation",
+ "investigate",
+ "hypothesis",
+ "scientific method",
+ "field study",
+ "lab report",
+ "معرض علوم",
+ "مشروع علمي",
+ "بحث علمي",
+ ],
+ },
+ {
+ goal: "logic_and_solutions",
+ patterns: [
+ "problem solving",
+ "problem-solving",
+ "solve problems",
+ "solving problem",
+ "logic puzzle",
+ "logical puzzle",
+ "brain teaser",
+ "algorithm",
+ "algorithms",
+ "حل المشاكل",
+ "حل مشاكل",
+ "تفكير منطقي",
+ ],
+ },
+ { goal: "develop_thinking", patterns: ["think", "critical", "تفكير"] },
  { goal: "find_hobby", patterns: ["hobby", "something to do", "after school", "هوايه", "نشاط", "بعد المدرسه"] },
  { goal: "build_games", patterns: ["build game", "make game", "create game", "يسوي لعب", "يبني لعب", "يصنع العاب"] },
  { goal: "build_websites", patterns: ["build website", "make website", "create website", "يسوي موقع", "يبني موقع"] },
@@ -848,14 +944,36 @@ const INTEREST_COURSE_MAP = {
  animation: ["scratch", "gamedev"],
  ai: ["python", "robot-advanced"],
  sports: ["robot-basics"],
+ /** Inquiry / investigation: structured thinking + hands-on data & experiments */
+ research: ["algo-intro", "python", "robot-basics", "robot-advanced", "algo-competitive"],
 };
 
 /** Parsed interests that imply STEM / creative-tech; used to avoid Arabic catalog as an age-only fallback. */
 const NON_ARABIC_FOCUS_INTERESTS = new Set([
  "coding", "programming", "robots", "games", "building", "electronics",
  "computers", "technology", "web", "design", "animation", "ai",
- "science", "math", "drawing", "art", "sports",
+ "science", "math", "drawing", "art", "sports", "research",
 ]);
+
+function hasTactilePhysicalPreference(profile) {
+ const adj = profile.adjectives || [];
+ if (adj.some((a) => ["hands_on", "mechanical"].includes(a))) return true;
+ const intr = profile.interests || [];
+ if (intr.some((i) => ["robots", "building", "electronics"].includes(i))) return true;
+ const goals = profile.parent_goals || [];
+ if (goals.includes("build_robots")) return true;
+ return false;
+}
+
+/** When these interests are present, screen-heavy tracks are a fair match — skip demotion. */
+function hasExplicitScreenOrCodeInterest(profile) {
+ const intr = profile.interests || [];
+ const goals = profile.parent_goals || [];
+ if (goals.includes("inquiry_research")) return true;
+ return intr.some((i) =>
+  ["coding", "programming", "web", "games", "animation", "design", "research"].includes(i)
+ );
+}
 
 function scoreCourses(profile, courses) {
  return courses.map((course) => {
@@ -899,6 +1017,19 @@ function scoreCourses(profile, courses) {
  score -= 18;
  }
 
+ const goals = profile.parent_goals || [];
+ const wantsCodeForAlgo = interests.some((i) => ["coding", "programming"].includes(i));
+ const wantsLogicForAlgo = interests.includes("math") || goals.includes("logic_and_solutions");
+ if (wantsCodeForAlgo && wantsLogicForAlgo && ["algo-intro", "algo-competitive"].includes(course.slug)) {
+ score += 14;
+ }
+
+ const inquiryResearchGoal = goals.includes("inquiry_research");
+ const inquirySlugs = ["algo-intro", "algo-competitive", "python", "robot-basics", "robot-advanced"];
+ if (inquiryResearchGoal && !interests.includes("research") && inquirySlugs.includes(course.slug)) {
+ score += 10;
+ }
+
  // ── EXPERIENCE LEVEL ──
  if (profile.experience_level) {
  const map = { none: "beginner", beginner: "beginner", intermediate: "intermediate", advanced: "advanced" };
@@ -938,6 +1069,26 @@ function scoreCourses(profile, courses) {
  if (profile.adjectives.includes("needs_confidence") && course.level === "advanced") score -= 8;
  if (profile.adjectives.includes("anxious") && course.level === "advanced") score -= 6;
  if (profile.adjectives.includes("struggling") && course.level === "advanced") score -= 10;
+
+ const adj = profile.adjectives || [];
+ const robotRelatedInterest =
+ interests.some((i) => ["robots", "building", "electronics"].includes(i)) || goals.includes("build_robots");
+ const handsOnTrait = adj.some((a) => ["hands_on", "mechanical"].includes(a));
+
+ const tactilePreferred = hasTactilePhysicalPreference(profile);
+ if (tactilePreferred && course.category === "robotics") {
+ score += 16;
+ }
+
+ const screenInterest = hasExplicitScreenOrCodeInterest(profile);
+ const demoteScreenHeavy =
+ tactilePreferred &&
+ (!screenInterest || (handsOnTrait && !robotRelatedInterest));
+ if (demoteScreenHeavy) {
+ const screenHeavySlugs = ["webdev", "gamedev", "algo-competitive", "mobappdev"];
+ if (screenHeavySlugs.includes(course.slug)) score -= 58;
+ if (course.slug === "python") score -= 12;
+ }
 
  score += evidenceScoringDelta(profile, course);
 
@@ -1014,6 +1165,7 @@ const COURSE_NAMES_EN = {
  "arabic-reading": "Arabic Reading & Writing", "arabic-grammar": "Arabic Grammar",
  "arabic-recitation": "Arabic Reading", "arabic-memorization": "Arabic Writing",
  gamedev: "Game Development",
+ mobappdev: "Mobile App Development",
 };
 
 const COURSE_NAMES_AR = {
@@ -1023,6 +1175,7 @@ const COURSE_NAMES_AR = {
  "arabic-reading": "القراءة والكتابة العربية", "arabic-grammar": "قواعد اللغة العربية",
  "arabic-recitation": "قراءة العربية", "arabic-memorization": "حفظ العربية",
  gamedev: "تطوير الألعاب",
+ mobappdev: "تطوير تطبيقات الجوال",
 };
 
 function generateMessage(profile, recommendedSlugs, locale) {
@@ -1159,9 +1312,11 @@ async function enhanceMessageWithAI(profile, recommendedSlugs, locale, fallbackM
  const names = recommendedSlugs.map((s) => courseNames[s] || s).join(", ");
 
  const prompt = {
- system: `You write warm, brief course recommendation messages for parents. Respond in ${lang}. 2-4 sentences max. Be specific about the child. Return ONLY the message text, no JSON.`,
+ system: `You write warm, brief course recommendation messages for parents. Respond in ${lang}. 2-4 sentences max. Be specific about the child. Return ONLY the message text, no JSON.
+
+You MUST recommend ONLY the courses listed below by name — use those exact titles, do not add, remove, or substitute any other courses (no extra classes, apps, or tracks).`,
  user: `Child profile: age=${profile.age}, traits=[${profile.adjectives.join(",")}], interests=[${profile.interests.join(",")}], special_needs=${profile.special_needs || "none"}.
-Recommended courses: ${names}.
+Recommended courses (complete list — mention all of these and no others): ${names}.
 Write a warm, personalized message explaining why these courses fit this child. Reference their specific traits.`,
  };
 
@@ -1218,10 +1373,12 @@ exports.recommend = async (req, res) => {
 
  // ── STEP 2: SCORE & RANK courses ──
  const scored = scoreCourses(profile, courses);
+ const parsedMax = Number.parseInt(process.env.RECOMMEND_MAX_COURSES || "2", 10);
+ const maxRecommended = Math.min(10, Math.max(1, Number.isFinite(parsedMax) ? parsedMax : 2));
  const topCourses = scored
  .filter((s) => s.score > 0)
  .sort((a, b) => b.score - a.score)
- .slice(0, 4);
+ .slice(0, maxRecommended);
  const recommendedSlugs = topCourses.map((s) => s.slug);
 
  console.log("[Recommend] Scores:", topCourses.map((s) => `${s.slug}(${s.score})`).join(", "));
