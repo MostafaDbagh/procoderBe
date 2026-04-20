@@ -163,3 +163,23 @@ exports.remove = async (req, res) => {
  sendServerError(res, error);
  }
 };
+
+exports.permanentDelete = async (req, res) => {
+ if (req.user.role !== "admin") {
+ return res.status(403).json({ message: "Admin access required" });
+ }
+
+ try {
+ const existing = await Team.findById(req.params.id);
+ if (!existing) {
+ return res.status(404).json({ message: "Team member not found" });
+ }
+ if (existing.photoPublicId) {
+ await destroyTeamMemberPhoto(existing.photoPublicId);
+ }
+ await Team.findByIdAndDelete(req.params.id);
+ res.json({ message: "Team member permanently deleted" });
+ } catch (error) {
+ sendServerError(res, error);
+ }
+};

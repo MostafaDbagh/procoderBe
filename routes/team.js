@@ -55,6 +55,7 @@ router.post(
 );
 
 router.put("/:id", auth, adminOnly, teamController.update);
+router.delete("/:id/permanent", auth, adminOnly, teamController.permanentDelete);
 router.delete("/:id", auth, adminOnly, teamController.remove);
 
 module.exports = router;
