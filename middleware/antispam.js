@@ -80,6 +80,27 @@ const signupCheckLimiter = rateLimit({
   message: { message: "Too many requests. Please try again later." },
 });
 
+/** Parent password reset — email OTP (Resend): max 5 requests per hour per IP */
+const parentPasswordResetRequestLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    message:
+      "Too many reset requests. Please try again in an hour or contact support.",
+  },
+});
+
+/** Parent reset OTP verify: max 30 checks per 15 min per IP */
+const parentPasswordResetVerifyLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Too many verification attempts. Please try again later." },
+});
+
 module.exports = {
   honeypot,
   timingGate,
@@ -88,4 +109,6 @@ module.exports = {
   promoQuoteLimiter,
   recommendLimiter,
   signupCheckLimiter,
+  parentPasswordResetRequestLimiter,
+  parentPasswordResetVerifyLimiter,
 };

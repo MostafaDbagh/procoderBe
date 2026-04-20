@@ -1,5 +1,9 @@
+const crypto = require("crypto");
+const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const ParentPasswordResetOtp = require("../models/ParentPasswordResetOtp");
+const { sendParentPasswordResetOtpEmail } = require("../services/parentPasswordResetMail");
 const { sendServerError } = require("../utils/safeErrorResponse");
 const Enrollment = require("../models/Enrollment");
 const {
@@ -89,7 +93,6 @@ exports.login = async (req, res) => {
  const user = await User.findOne({ email }).select("+password");
  // Timing-safe: always run bcrypt compare even if user not found
  // to prevent email enumeration via response time differences
- const bcrypt = require("bcryptjs");
  const dummyHash = "$2a$12$000000000000000000000uGWDDnVVG2e0sweOaGMeJjhtPsG.gIEC";
  const isMatch = await bcrypt.compare(password, user?.password || dummyHash);
  if (!user || !isMatch) {
@@ -154,6 +157,189 @@ exports.getMe = async (req, res) => {
  return res.status(404).json({ message: "User not found" });
  }
  res.json(user);
+ } catch (error) {
+ sendServerError(res, error);
+ }
+};
+
+const RESET_OTP_EXPIRES_MS = 15 * 60 * 1000;
+const RESET_MAX_OTP_ATTEMPTS = 5;
+
+function generateOtp4() {
+ return String(crypto.randomInt(0, 10_000)).padStart(4, "0");
+}
+
+/** Public: sends email OTP via Resend for parent accounts only (anti-enumeration). */
+exports.requestParentPasswordReset = async (req, res) => {
+ try {
+ const rawEmail = String(req.body.email || "").trim().toLowerCase();
+ const locale = req.body.locale === "ar" ? "ar" : "en";
+ const generic = {
+ ok: true,
+ message:
+ locale === "ar"
+ ? "إذا وُجد حساب ولي أمر بهذا البريد، فستصلك رسالة تحتوي رمز التحقق قريباً."
+ : "If a parent account exists for this email, you’ll receive a verification code shortly.",
+ };
+
+ if (!rawEmail) {
+ return res.status(400).json({ message: "Valid email is required" });
+ }
+
+ const user = await User.findOne({ email: rawEmail, role: "parent" })
+ .select("_id")
+ .lean();
+ if (!user) {
+ console.info(`[password-reset] no parent user | ${rawEmail}`);
+ return res.json(generic);
+ }
+
+ const code = generateOtp4();
+ const codeHash = await bcrypt.hash(code, 10);
+
+ await ParentPasswordResetOtp.findOneAndUpdate(
+ { email: rawEmail },
+ {
+ email: rawEmail,
+ codeHash,
+ expiresAt: new Date(Date.now() + RESET_OTP_EXPIRES_MS),
+ attempts: 0,
+ },
+ { upsert: true }
+ );
+
+ try {
+ await sendParentPasswordResetOtpEmail(rawEmail, code, locale);
+ } catch (e) {
+ console.error("[password-reset] send failed", e);
+ await ParentPasswordResetOtp.deleteOne({ email: rawEmail });
+ return res.status(503).json({
+ message:
+ locale === "ar"
+ ? "تعذّر إرسال البريد حالياً. حاول لاحقاً أو تواصل مع الدعم."
+ : "We couldn’t send the email right now. Please try again later or contact support.",
+ });
+ }
+
+ return res.json(generic);
+ } catch (error) {
+ sendServerError(res, error);
+ }
+};
+
+/**
+ * Public: check OTP only (does not reset password). Same attempt rules as reset.
+ * Lets the client show success/error on the OTP screen before the new-password step.
+ */
+exports.verifyParentResetOtp = async (req, res) => {
+ try {
+ const rawEmail = String(req.body.email || "").trim().toLowerCase();
+ const code = String(req.body.code || "").replace(/\D/g, "");
+
+ if (!rawEmail) {
+ return res.status(400).json({ message: "Valid email is required" });
+ }
+ if (code.length !== 4) {
+ return res
+ .status(400)
+ .json({ message: "Enter the 4-digit code from your email" });
+ }
+
+ const parentExists = await User.exists({ email: rawEmail, role: "parent" });
+ if (!parentExists) {
+ return res
+ .status(400)
+ .json({ message: "Invalid or expired code. Request a new one." });
+ }
+
+ const record = await ParentPasswordResetOtp.findOne({ email: rawEmail });
+ if (!record || record.expiresAt.getTime() < Date.now()) {
+ return res
+ .status(400)
+ .json({ message: "Invalid or expired code. Request a new one." });
+ }
+ if (record.attempts >= RESET_MAX_OTP_ATTEMPTS) {
+ await ParentPasswordResetOtp.deleteOne({ _id: record._id });
+ return res
+ .status(400)
+ .json({ message: "Too many attempts. Request a new code." });
+ }
+
+ const match = await bcrypt.compare(code, record.codeHash);
+ if (!match) {
+ record.attempts += 1;
+ await record.save();
+ return res.status(400).json({ message: "Invalid verification code" });
+ }
+
+ res.json({
+ ok: true,
+ message:
+ "Code verified. Continue to choose your new password.",
+ });
+ } catch (error) {
+ sendServerError(res, error);
+ }
+};
+
+/** Public: verify OTP and set new password (parent only). */
+exports.resetParentPasswordWithOtp = async (req, res) => {
+ try {
+ const rawEmail = String(req.body.email || "").trim().toLowerCase();
+ const code = String(req.body.code || "").replace(/\D/g, "");
+ const { password } = req.body;
+
+ if (!rawEmail) {
+ return res.status(400).json({ message: "Valid email is required" });
+ }
+ if (code.length !== 4) {
+ return res
+ .status(400)
+ .json({ message: "Enter the 4-digit code from your email" });
+ }
+
+ const record = await ParentPasswordResetOtp.findOne({ email: rawEmail });
+ if (!record || record.expiresAt.getTime() < Date.now()) {
+ return res
+ .status(400)
+ .json({ message: "Invalid or expired code. Request a new one." });
+ }
+ if (record.attempts >= RESET_MAX_OTP_ATTEMPTS) {
+ await ParentPasswordResetOtp.deleteOne({ _id: record._id });
+ return res
+ .status(400)
+ .json({ message: "Too many attempts. Request a new code." });
+ }
+
+ const match = await bcrypt.compare(code, record.codeHash);
+ if (!match) {
+ record.attempts += 1;
+ await record.save();
+ return res.status(400).json({ message: "Invalid verification code" });
+ }
+
+ const user = await User.findOne({ email: rawEmail, role: "parent" }).select(
+ "+password"
+ );
+ if (!user) {
+ await ParentPasswordResetOtp.deleteOne({ _id: record._id });
+ return res
+ .status(400)
+ .json({ message: "Invalid or expired code. Request a new one." });
+ }
+ if (user.isActive === false) {
+ await ParentPasswordResetOtp.deleteOne({ _id: record._id });
+ return res.status(403).json({ message: "Account deactivated" });
+ }
+
+ user.password = password;
+ await user.save();
+ await ParentPasswordResetOtp.deleteOne({ _id: record._id });
+
+ res.json({
+ ok: true,
+ message: "Password updated. You can sign in with your new password.",
+ });
  } catch (error) {
  sendServerError(res, error);
  }

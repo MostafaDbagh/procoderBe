@@ -4,7 +4,11 @@ const rateLimit = require("express-rate-limit");
 const validate = require("../middleware/validate");
 const authController = require("../controllers/authController");
 const auth = require("../middleware/auth");
-const { signupCheckLimiter } = require("../middleware/antispam");
+const {
+  signupCheckLimiter,
+  parentPasswordResetRequestLimiter,
+  parentPasswordResetVerifyLimiter,
+} = require("../middleware/antispam");
 
 const router = express.Router();
 
@@ -73,6 +77,51 @@ router.post(
     body("password").notEmpty().withMessage("Password is required"),
   ]),
   authController.login
+);
+
+router.post(
+  "/parent/request-password-reset",
+  parentPasswordResetRequestLimiter,
+  validate([
+    body("email").isEmail().withMessage("Valid email is required"),
+    body("locale").optional().isIn(["en", "ar"]),
+  ]),
+  authController.requestParentPasswordReset
+);
+
+router.post(
+  "/parent/verify-reset-otp",
+  parentPasswordResetVerifyLimiter,
+  validate([
+    body("email").isEmail().withMessage("Valid email is required"),
+    body("code")
+      .customSanitizer((v) => String(v || "").replace(/\D/g, ""))
+      .isLength({ min: 4, max: 4 })
+      .withMessage("Code must be 4 digits"),
+  ]),
+  authController.verifyParentResetOtp
+);
+
+router.post(
+  "/parent/reset-password",
+  authLimiter,
+  validate([
+    body("email").isEmail().withMessage("Valid email is required"),
+    body("code")
+      .customSanitizer((v) => String(v || "").replace(/\D/g, ""))
+      .isLength({ min: 4, max: 4 })
+      .withMessage("Code must be 4 digits"),
+    body("password")
+      .isLength({ min: 8 })
+      .withMessage("Password must be at least 8 characters")
+      .matches(/[A-Z]/)
+      .withMessage("Password must contain at least one uppercase letter")
+      .matches(/[a-z]/)
+      .withMessage("Password must contain at least one lowercase letter")
+      .matches(/\d/)
+      .withMessage("Password must contain at least one number"),
+  ]),
+  authController.resetParentPasswordWithOtp
 );
 
 router.post(
