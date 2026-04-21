@@ -34,6 +34,7 @@ exports.list = async (req, res) => {
  .sort({ createdAt: -1 })
  .skip(skip)
  .limit(limit)
+ .populate("enrollment", "parentName email phone courseId courseTitle amountDue status childName childAge")
  .lean(),
  ]);
  res.json({
