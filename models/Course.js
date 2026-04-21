@@ -44,6 +44,8 @@ const courseSchema = new mongoose.Schema(
     discountPercent: { type: Number, default: 0, min: 0, max: 100 },
     isActive: { type: Boolean, default: true },
     enrollmentCount: { type: Number, default: 0 },
+    /** ISO date string for the next cohort start — displayed as a badge on course cards. */
+    nextSessionDate: { type: Date, default: null },
   },
   { timestamps: true }
 );

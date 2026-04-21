@@ -60,6 +60,16 @@ const CATEGORIES = [
     sortOrder: 5,
     isActive: true,
   },
+  {
+    slug: "web-development",
+    title: { en: "Web Development", ar: "تطوير الويب" },
+    description: {
+      en: "HTML, CSS, and JavaScript brought to life — kids build real websites they can proudly share with family and friends.",
+      ar: "HTML وCSS وJavaScript تأخذ شكلها الحقيقي — يبني الأطفال مواقع حقيقية يفخرون بمشاركتها مع العائلة والأصدقاء.",
+    },
+    sortOrder: 6,
+    isActive: true,
+  },
 ];
 
 async function run() {
