@@ -17,6 +17,7 @@
     "seed:admin:mock": "MOCK_ADMIN=1 node scripts/seed-admin.js",
     "seed:instructor": "node scripts/seed-instructor.js",
     "seed:instructor:mock": "MOCK_INSTRUCTOR=1 node scripts/seed-instructor.js",
+    "seed:pricing": "node scripts/seed-pricing.js",
     "db:reset": "node scripts/reset-db.js"
   },
   "keywords": [],
