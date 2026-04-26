@@ -35,5 +35,6 @@ router.delete("/:slug", auth, adminOnly, blogController.remove);
 // Public routes AFTER
 router.get("/", blogController.listPublished);
 router.get("/:slug", blogController.getBySlug);
+router.post("/:slug/view", blogController.incrementView);
 
 module.exports = router;

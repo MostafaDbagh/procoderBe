@@ -31,15 +31,21 @@ exports.listPublished = async (req, res) => {
 
 exports.getBySlug = async (req, res) => {
  try {
- const post = await BlogPost.findOneAndUpdate(
- { slug: req.params.slug, isPublished: true },
- { $inc: { viewCount: 1 } },
- { new: true }
- ).lean();
+ const post = await BlogPost.findOne({ slug: req.params.slug, isPublished: true }).lean();
  if (!post) return res.status(404).json({ message: "Post not found" });
+ res.set("Cache-Control", "public, max-age=300, s-maxage=300");
  res.json(post);
  } catch (error) {
  sendServerError(res, error);
+ }
+};
+
+exports.incrementView = async (req, res) => {
+ try {
+ await BlogPost.updateOne({ slug: req.params.slug }, { $inc: { viewCount: 1 } });
+ res.status(204).end();
+ } catch {
+ res.status(204).end();
  }
 };
 
