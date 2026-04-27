@@ -56,11 +56,79 @@ function normalizeText(text) {
 
 // ── AGE EXTRACTION ──────────────────────────────────────────
 
-function extractAge(text) {
- const normalized = normalizeArabicNumerals(text.toLowerCase());
+// Convert Arabic number words to digits for ages 3-20
+// Note: \b does not work with Arabic Unicode — use space/punctuation anchors instead
+function normalizeArabicNumberWords(text) {
+ const W = "[\\s،,\\.!؟?]"; // word-separator char class for Arabic
+ const b = `(?:^|(?<=${W})|(?<=${W}))`;
+ // ordered longest-first to avoid partial matches (e.g. عشرين before عشر)
+ // Longest compound forms first (with عشر and عشرة variants), then singles
+ const pairs = [
+  ["عشرين", "20"],
+  // 19: all forms of 9 + 10
+  ["تسعة عشرة", "19"], ["تسعه عشره", "19"], ["تسعة عشر", "19"], ["تسعه عشر", "19"], ["تسع عشر", "19"], ["تسع عشرة", "19"],
+  // 18
+  ["ثمانية عشرة", "18"], ["ثمانيه عشره", "18"], ["ثمانية عشر", "18"], ["ثمانيه عشر", "18"], ["ثماني عشر", "18"], ["ثماني عشرة", "18"],
+  // 17
+  ["سبعة عشرة", "17"], ["سبعه عشره", "17"], ["سبعة عشر", "17"], ["سبعه عشر", "17"], ["سبع عشر", "17"], ["سبع عشرة", "17"],
+  // 16
+  ["ستة عشرة", "16"], ["سته عشره", "16"], ["ستة عشر", "16"], ["سته عشر", "16"], ["ست عشر", "16"], ["ست عشرة", "16"],
+  // 15
+  ["خمسة عشرة", "15"], ["خمسه عشره", "15"], ["خمسة عشر", "15"], ["خمسه عشر", "15"], ["خمس عشر", "15"], ["خمس عشرة", "15"],
+  // 14
+  ["اربعة عشرة", "14"], ["اربعة عشر", "14"], ["أربعة عشرة", "14"], ["أربعة عشر", "14"],
+  ["اربع عشرة", "14"], ["اربع عشر", "14"], ["أربع عشرة", "14"], ["أربع عشر", "14"],
+  // 13
+  ["ثلاثة عشرة", "13"], ["ثلاثه عشره", "13"], ["ثلاثة عشر", "13"], ["ثلاثه عشر", "13"],
+  ["ثلاث عشرة", "13"], ["ثلاث عشر", "13"],
+  // 12
+  ["اثنتي عشرة", "12"], ["اثنا عشر", "12"], ["اثني عشر", "12"], ["اثنى عشر", "12"],
+  // 11
+  ["احدى عشرة", "11"], ["إحدى عشرة", "11"], ["احد عشر", "11"], ["إحدى عشر", "11"], ["احدى عشر", "11"],
+  // Singles — feminine before masculine to avoid partial match
+  ["عشرة", "10"], ["عشره", "10"], ["عشر", "10"],
+  ["تسعة", "9"], ["تسعه", "9"], ["تسع", "9"],
+  ["ثمانية", "8"], ["ثمانيه", "8"], ["ثمان", "8"], ["ثماني", "8"],
+  ["سبعة", "7"], ["سبعه", "7"], ["سبع", "7"],
+  ["ستة", "6"], ["سته", "6"], ["ست", "6"],
+  ["خمسة", "5"], ["خمسه", "5"], ["خمس", "5"],
+  ["اربعة", "4"], ["اربعه", "4"], ["أربعة", "4"], ["أربعه", "4"], ["اربع", "4"], ["أربع", "4"],
+  ["ثلاثة", "3"], ["ثلاثه", "3"], ["ثلاث", "3"],
+ ];
+ let t = text;
+ for (const [word, digit] of pairs) {
+  // Replace as whole token: must be surrounded by non-Arabic or string boundaries
+  t = t.replace(new RegExp(`(?<![\\u0600-\\u06FF])${word}(?![\\u0600-\\u06FF])`, "g"), ` ${digit} `);
+ }
+ return t;
+}
 
- // Direct patterns: "7 years", "age 7", "7 سنوات", "عمره 7"
+// Convert Arabizi number words to digits (e.g. "sab3 sneen" → "7 sneen")
+function normalizeArabiziNumbers(text) {
+ const pairs = [
+  [/\b(?:3ashr[ae]?|3ashar)\b/gi, "10"],
+  [/\b(?:tis3|tisa3|tesa3)\b/gi, "9"],
+  [/\b(?:tman|thman|tmania|tmaniya)\b/gi, "8"],
+  [/\bsab3\b/gi, "7"],
+  [/\bsitt?[ae]?\b/gi, "6"],
+  [/\b(?:5amsa?|khamsa?)\b/gi, "5"],
+  [/\barba3\b/gi, "4"],
+  [/\b(?:tlat[ae]?|tleth?)\b/gi, "3"],
+ ];
+ let t = text;
+ for (const [re, digit] of pairs) t = t.replace(re, ` ${digit} `);
+ return t;
+}
+
+function extractAge(text) {
+ // Normalize: Arabizi numbers → digits, Arabic-Indic numerals → Western, Arabic number words → digits
+ let normalized = normalizeArabiziNumbers(text.toLowerCase());
+ normalized = normalizeArabicNumerals(normalized);
+ normalized = normalizeArabicNumberWords(normalized);
+
+ // Direct patterns: "7 years", "age 7", "7 سنوات", "عمره 7", "16-year-old"
  const patterns = [
+ /(\d{1,2})-year[s]?-old/i,
  /(?:age|aged|is|he's|she's|he is|she is|child is|kid is|son is|daughter is)\s*(\d{1,2})/i,
  /(\d{1,2})\s*(?:years?\s*old|yrs?\s*old|year|سنه|سنوات|سنين|سنة|سنتين|اعوام)/i,
  /(?:عمر[هاوي]?|عمرها|عمره)\s*(\d{1,2})/,
@@ -79,13 +147,23 @@ function extractAge(text) {
  }
  }
 
- // Grade-level inference
+ // Grade-level inference — specific patterns MUST come before general ones
  const gradeMap = [
  [/(?:kg\s*1|كي جي\s*1|روضه اولى|pre-?k)/i, 5],
  [/(?:kg\s*2|كي جي\s*2|روضه تانيه|تمهيدي)/i, 6],
+ // Ordinal grade forms: 1st/2nd/3rd/4th/5th/6th/7th/8th/9th/10th/11th/12th grade
+ [/1st\s*grade/i, 6], [/2nd\s*grade/i, 7], [/3rd\s*grade/i, 8],
+ [/4th\s*grade/i, 9], [/5th\s*grade/i, 10], [/6th\s*grade/i, 11],
+ [/7th\s*grade/i, 12], [/8th\s*grade/i, 13], [/9th\s*grade/i, 14],
+ [/10th\s*grade/i, 15], [/11th\s*grade/i, 16], [/12th\s*grade/i, 17],
+ // Named grades
  [/(?:first\s*grade|grade\s*1|اول\s*ابتدائي|صف\s*اول|اولى ابتدائي)/i, 6],
  [/(?:second\s*grade|grade\s*2|ثاني?\s*ابتدائي|صف\s*ثاني)/i, 7],
- [/(?:third\s*grade|grade\s*3|ثالث?\s*ابتدائي|صف\s*ثالث)/i, 8],
+ // Specific Arabic middle-school grades BEFORE general "إعدادي" pattern
+ [/(?:ثالث\s*(?:ال)?(?:متوسط|اعدادي|إعدادي)|الصف\s*الثالث\s*(?:ال)?(?:اعدادي|إعدادي))/i, 14],
+ [/(?:ثاني\s*(?:ال)?(?:متوسط|اعدادي|إعدادي)|الصف\s*الثاني\s*(?:ال)?(?:اعدادي|إعدادي))/i, 13],
+ [/(?:اول\s*(?:ال)?(?:متوسط|اعدادي|إعدادي)|الصف\s*الاول\s*(?:ال)?(?:اعدادي|إعدادي))/i, 12],
+ [/(?:third\s*grade|grade\s*3|ثالث?\s*ابتدائي|صف\s*ثالث\s*ابتدائي)/i, 8],
  [/(?:fourth\s*grade|grade\s*4|رابع?\s*ابتدائي|صف\s*رابع)/i, 9],
  [/(?:fifth\s*grade|grade\s*5|خامس?\s*ابتدائي|صف\s*خامس)/i, 10],
  [/(?:sixth\s*grade|grade\s*6|سادس?\s*ابتدائي|صف\s*سادس)/i, 11],
@@ -95,7 +173,7 @@ function extractAge(text) {
  [/(?:tenth\s*grade|grade\s*10|اول\s*ثانوي|عاشر)/i, 15],
  [/(?:eleventh\s*grade|grade\s*11|ثاني?\s*ثانوي|حادي?\s*عشر)/i, 16],
  [/(?:twelfth\s*grade|grade\s*12|ثالث?\s*ثانوي|ثاني?\s*عشر)/i, 17],
- [/(?:middle\s*school|متوسط|اعدادي|إعدادي)/i, 13],
+ [/(?:middle\s*school|متوسط|اعدادي|إعدادي)/i, 13], // general — after specific grades
  [/(?:high\s*school|ثانوي|ثانويه)/i, 16],
  [/(?:teenager|مراهق|مراهقه)/i, 14],
  [/(?:pre-?teen|pre\s*teen)/i, 11],
@@ -117,8 +195,8 @@ function extractGender(text) {
  const boyPatterns = [
  /\b(?:son|boy|he |he's|him|his|brother)\b/i,
  /(?:ابني|ولدي|ابن[يه]|ولد[يه]|الولد|طفلي|الصبي)/,
- // (?<!ت) avoids matching يحب inside تحب (Arabic feminine "she loves")
- /(?:عنده|(?<!ت)يحب|يبي|يبغى|عمره|بيحب|بدو|كيحب)/,
+ // Use negative lookahead to prevent عنده matching inside عندها, عمره inside عمرها
+ /(?:عنده(?![\u0600-\u06FF])|(?<!ت)يحب|يبي|يبغى|عمره(?![\u0600-\u06FF])|بيحب|بدو|كيحب)/,
  /\b(?:ibni|waladi|weldi|ebni)\b/i,
  ];
 
@@ -128,7 +206,7 @@ function extractGender(text) {
  /(?:^|[\s،])بنت\s+(?:عمرها|عمر)\s/,
  /عندي\s+بنت\s+عمرها/,
  /(?:عندها|تحب|تبي|تبغى|عمرها|بتحب|بدها|كتحب)/,
- /\b(?:binti|benti|bnayti)\b/i,
+ /\b(?:binti|benti|bnayti|bint)\b/i,
  ];
 
  let boyScore = 0;
@@ -657,27 +735,62 @@ function extractExperienceLevel(text) {
  const lower = text.toLowerCase();
 
  const advanced = [
- "advanced", "expert", "builds apps", "years of experience", "competitions",
- "متقدم", "خبير", "يبني تطبيقات", "مسابقات",
+  // EN
+  "advanced", "expert", "builds apps", "built apps", "years of coding", "years of experience",
+  "hackathon", "open source", "competitive programming", "knows python", "knows javascript",
+  "knows java", "knows rust", "knows c++", "web developer", "full stack",
+  "been coding since", "coding since he was", "coding since she was",
+  "placed in competition", "won competition", "placed first", "placed second",
+  // AR
+  "متقدم", "خبير", "يبني تطبيقات", "مسابقات", "حصل على جائزه",
+  "يعرف جافاسكريبت", "يعرف لغات برمجه", "مشارك بمسابقات",
+  "بنى برنامج", "بنى تطبيق", "له مشاريع", "عنده مشاريع",
  ];
  const intermediate = [
- "intermediate", "some experience", "been coding", "comfortable", "knows well",
- "متوسط", "عنده خبره", "يعرف برمجه",
+  // EN
+  "intermediate", "some experience", "been coding", "comfortable with coding",
+  "knows well", "some coding", "has done coding", "done scratch", "done python basics",
+  "can code a little", "knows the basics of coding", "has basic coding",
+  "tried a few courses", "did a course", "knows python", "knows javascript", "knows java",
+  // AR
+  "متوسط", "عنده خبره", "يعرف برمجه", "جرب بايثون", "جرب اكواد", "يعرف بايثون",
+  "عنده خبره بسيطه", "يعرف اساسيات البرمجه", "اخذ دوره قبل",
+ ];
+ // none check BEFORE beginner — "complete beginner" and "never touched coding" → none, not beginner
+ const none = [
+  // EN
+  "never tried", "never coded", "first time", "no experience", "brand new",
+  "never programmed", "complete beginner", "zero experience", "no coding",
+  "hasn't coded", "has not coded", "never touched coding", "no background",
+  "starting from scratch", "knows nothing about coding",
+  // AR
+  "ما جرب", "اول مره", "ما عنده خبره", "ابدا ما جرب", "ماله خلفيه",
+  "ما تعلم قبل", "بدون خبره", "من الصفر", "ما يعرف برمجه",
  ];
  const beginner = [
- "beginner", "knows basics", "tried scratch", "some scratch", "a little",
- "مبتدئ", "يعرف الاساسيات", "جرب سكراتش", "جرب شوي", "خلفيه بسيطه",
+  // EN
+  "knows basics", "tried scratch", "tried a little scratch", "some scratch", "a little coding",
+  "knows the basics", "just started", "starting out", "just beginning", "took one class",
+  "learned a little", "basic understanding", "tried coding",
+  // AR
+  "مبتدئ", "يعرف الاساسيات", "جرب سكراتش", "جرب شوي", "خلفيه بسيطه",
+  "بدا يتعلم", "بدأ يتعلم", "تعلم قليل",
  ];
- const none = [
- "never tried", "never coded", "first time", "no experience", "brand new",
- "never programmed", "complete beginner", "zero experience",
- "ما جرب", "اول مره", "ما عنده خبره", "ابدا ما جرب", "ماله خلفيه",
- ];
+
+ // Age-relative experience inference ("since he was 12" → advanced if current age - 12 ≥ 2)
+ const codingAgePattern = /(?:coding|programming|been coding)[\w\s]*since\s+(?:he|she)\s+was\s+(\d{1,2})/i;
+ const m = lower.match(codingAgePattern);
+ if (m) {
+  const codingSince = parseInt(m[1], 10);
+  if (codingSince <= 12) return "advanced";
+  if (codingSince <= 14) return "intermediate";
+ }
 
  for (const kw of advanced) { if (t.includes(kw) || lower.includes(kw)) return "advanced"; }
  for (const kw of intermediate) { if (t.includes(kw) || lower.includes(kw)) return "intermediate"; }
- for (const kw of beginner) { if (t.includes(kw) || lower.includes(kw)) return "beginner"; }
+ // Check none before beginner: "complete beginner" = no experience, not same as "tried a little"
  for (const kw of none) { if (t.includes(kw) || lower.includes(kw)) return "none"; }
+ for (const kw of beginner) { if (t.includes(kw) || lower.includes(kw)) return "beginner"; }
 
  return null;
 }
@@ -1030,13 +1143,32 @@ function scoreCourses(profile, courses) {
  score += 10;
  }
 
- // ── EXPERIENCE LEVEL ──
+ // ── EXPERIENCE LEVEL (heavily weighted — prevents wrong-level placement) ──
  if (profile.experience_level) {
- const map = { none: "beginner", beginner: "beginner", intermediate: "intermediate", advanced: "advanced" };
- if (course.level === map[profile.experience_level]) score += 4;
- // Gifted beginners can jump to intermediate
- if (profile.adjectives.includes("gifted") && map[profile.experience_level] === "beginner" && course.level === "intermediate") {
- score += 2;
+ const levelMap = { none: "beginner", beginner: "beginner", intermediate: "intermediate", advanced: "advanced" };
+ const targetLevel = levelMap[profile.experience_level];
+ if (course.level === targetLevel) {
+ score += 14;
+ } else if (
+ (targetLevel === "beginner" && course.level === "intermediate") ||
+ (targetLevel === "intermediate" && course.level === "advanced")
+ ) {
+ score -= 6;
+ } else if (targetLevel === "beginner" && course.level === "advanced") {
+ score -= 20;
+ } else if (
+ (targetLevel === "advanced" && course.level === "beginner") ||
+ (targetLevel === "intermediate" && course.level === "beginner")
+ ) {
+ score -= 10;
+ } else if (targetLevel === "advanced" && course.level === "intermediate") {
+ score -= 4;
+ }
+ if (profile.adjectives.includes("gifted") && targetLevel === "beginner" && course.level === "intermediate") {
+ score += 8;
+ }
+ if (profile.adjectives.includes("fast_learner") && targetLevel === "intermediate" && course.level === "advanced") {
+ score += 4;
  }
  }
 
@@ -1344,11 +1476,118 @@ Write a warm, personalized message explaining why these courses fit this child. 
 }
 
 // ============================================================
+// CONFIDENCE SCORING
+// ============================================================
+
+function computeConfidence(profile) {
+ let score = 0;
+ if (profile.age) score += 30;
+ if (profile.experience_level) score += 25;
+ if (profile.interests && profile.interests.length > 0) score += 20;
+ if (profile.adjectives && profile.adjectives.length > 0) score += 15;
+ if (profile.parent_goals && profile.parent_goals.length > 0) score += 7;
+ if (profile.learning_style) score += 3;
+ return score;
+}
+
+// ============================================================
+// FOLLOW-UP QUESTIONS
+// ============================================================
+
+function generateFollowUpQuestions(profile, lang) {
+ const isAr = lang === "ar";
+ const questions = [];
+
+ // Age and experience_level are the two most critical — ask them first
+ if (!profile.age) {
+  questions.push(
+   isAr ? "كم عمر طفلك بالضبط؟" : "How old is your child exactly?"
+  );
+ }
+ if (!profile.experience_level) {
+  questions.push(
+   isAr
+    ? "هل سبق لطفلك تجربة أي برمجة أو تكنولوجيا من قبل؟ (مبتدئ تماماً، جرب شيئاً، أو لديه خبرة جيدة)"
+    : "Has your child tried any coding or tech before? (complete beginner, tried a little, or has solid experience)"
+  );
+ }
+ if (!profile.interests || profile.interests.length === 0) {
+  questions.push(
+   isAr
+    ? "ما هي اهتمامات طفلك؟ (برمجة، روبوتيات، ألعاب، رياضيات...)"
+    : "What are your child's interests? (coding, robotics, gaming, math...)"
+  );
+ }
+ if (!profile.adjectives || profile.adjectives.length === 0) {
+  questions.push(
+   isAr
+    ? "كيف تصف شخصية طفلك؟ (نشيط، خلاق، تحليلي، اجتماعي...)"
+    : "How would you describe your child's personality? (energetic, creative, analytical, social...)"
+  );
+ }
+ if (!profile.parent_goals || profile.parent_goals.length === 0) {
+  questions.push(
+   isAr
+    ? "ما هدفك من تسجيله في برنامج STEM؟"
+    : "What's your goal in enrolling them in a STEM program?"
+  );
+ }
+
+ return questions.slice(0, 2);
+}
+
+// ============================================================
+// LEARNING PATH GENERATION
+// ============================================================
+
+function generateLearningPath(topCourses, allCourses, profile) {
+ if (topCourses.length === 0) return [];
+
+ const path = [];
+ const usedSlugs = new Set();
+
+ if (topCourses[0]) {
+  path.push({ phase: "now", slug: topCourses[0].slug, title: topCourses[0].title });
+  usedSlugs.add(topCourses[0].slug);
+ }
+
+ if (topCourses[1]) {
+  path.push({ phase: "next", slug: topCourses[1].slug, title: topCourses[1].title });
+  usedSlugs.add(topCourses[1].slug);
+ } else {
+  const nextCourse = allCourses.find(
+   (c) =>
+    c.isActive &&
+    !usedSlugs.has(c.slug) &&
+    (c.level === "intermediate" || (topCourses[0] && c.ageMin > topCourses[0].ageMin))
+  );
+  if (nextCourse) {
+   path.push({ phase: "next", slug: nextCourse.slug, title: nextCourse.title });
+   usedSlugs.add(nextCourse.slug);
+  }
+ }
+
+ if (path.length >= 1) {
+  const futureCourse = allCourses.find(
+   (c) =>
+    c.isActive &&
+    !usedSlugs.has(c.slug) &&
+    (c.level === "advanced" || (profile.age && c.ageMin > (profile.age + 1)))
+  );
+  if (futureCourse) {
+   path.push({ phase: "future", slug: futureCourse.slug, title: futureCourse.title });
+  }
+ }
+
+ return path;
+}
+
+// ============================================================
 // MAIN CONTROLLER
 // ============================================================
 
 exports.recommend = async (req, res) => {
- const { message, locale = "en" } = req.body;
+ const { message, locale = "en", conversationHistory = [] } = req.body;
 
  if (!message || typeof message !== "string" || message.length > 2000) {
  return res.status(400).json({ error: "Invalid message. Must be a string under 2000 characters." });
@@ -1364,21 +1603,29 @@ exports.recommend = async (req, res) => {
  return res.status(503).json({ error: "No courses available" });
  }
 
- // ── STEP 1: PARSE (gated: sanitize + local NLP + optional structured LLM merge) ──
- // For faster API: set PARSER_USE_LLM=0 in .env (skips OpenAI/Anthropic parse pass when keys exist).
+ // ── STEP 1: PARSE — merge conversation history for richer context ──
+ const historyContext = Array.isArray(conversationHistory)
+  ? conversationHistory
+   .filter((t) => t.role === "user" && typeof t.content === "string")
+   .map((t) => t.content)
+   .join(" ")
+  : "";
+ const combinedInput = historyContext ? `${historyContext} ${message}` : message;
+
  console.log("[Recommend] Parsing child profile (parser gate)...");
  const { parseWithGate } = require("../services/aiParserGate");
- const profile = await parseWithGate(message, locale);
+ const profile = await parseWithGate(combinedInput.slice(0, 4000), locale);
  console.log("[Recommend] Profile:", JSON.stringify(profile));
 
  // ── STEP 2: SCORE & RANK courses ──
  const scored = scoreCourses(profile, courses);
  const parsedMax = Number.parseInt(process.env.RECOMMEND_MAX_COURSES || "2", 10);
  const maxRecommended = Math.min(10, Math.max(1, Number.isFinite(parsedMax) ? parsedMax : 2));
- const topCourses = scored
- .filter((s) => s.score > 0)
- .sort((a, b) => b.score - a.score)
- .slice(0, maxRecommended);
+ const sorted = [...scored].sort((a, b) => b.score - a.score);
+ // Prefer positive-scored courses; if none exist, fall back to top-ranked regardless
+ let topCourses = sorted.filter((s) => s.score > 0).slice(0, maxRecommended);
+ if (topCourses.length === 0) topCourses = sorted.slice(0, maxRecommended);
+ const topCourseObjects = topCourses.map((s) => courses.find((c) => c.slug === s.slug)).filter(Boolean);
  const recommendedSlugs = topCourses.map((s) => s.slug);
 
  console.log("[Recommend] Scores:", topCourses.map((s) => `${s.slug}(${s.score})`).join(", "));
@@ -1394,10 +1641,18 @@ exports.recommend = async (req, res) => {
  // AI enhancement failed, use template message — totally fine
  }
 
+ // ── STEP 4: ENRICH RESPONSE ──
+ const confidence = computeConfidence(profile);
+ const followUpQuestions = confidence < 90 ? generateFollowUpQuestions(profile, locale) : [];
+ const learningPath = generateLearningPath(topCourseObjects, courses, profile);
+
  return res.json({
  ids: recommendedSlugs,
  message: finalMessage,
  profile,
+ confidence,
+ followUpQuestions,
+ learningPath,
  });
  } catch (error) {
  console.error("[Recommend] Error:", error);
