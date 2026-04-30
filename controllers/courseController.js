@@ -43,7 +43,7 @@ exports.list = async (req, res) => {
  { $group: { _id: "$slug", doc: { $first: "$$ROOT" } } },
  { $replaceRoot: { newRoot: "$doc" } },
  { $project: { instructors: 0 } },
- { $sort: { category: 1, ageMin: 1 } },
+ { $sort: { sortOrder: 1, category: 1, ageMin: 1 } },
  ]);
  res.set("Cache-Control", "public, max-age=60, s-maxage=300");
  res.json(courses);
@@ -72,7 +72,7 @@ exports.listAdmin = async (req, res) => {
  const pipelineBase = [
  ...matchStages,
  ...dedupeBySlugKeepNewest(),
- { $sort: { category: 1, ageMin: 1 } },
+ { $sort: { sortOrder: 1, category: 1, ageMin: 1 } },
  ];
  const [countResult, courses] = await Promise.all([
  Course.aggregate([...pipelineBase, { $count: "total" }]),

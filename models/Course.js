@@ -46,6 +46,8 @@ const courseSchema = new mongoose.Schema(
     enrollmentCount: { type: Number, default: 0 },
     /** ISO date string for the next cohort start — displayed as a badge on course cards. */
     nextSessionDate: { type: Date, default: null },
+    /** Lower number = appears first in the catalog. Default 0. */
+    sortOrder: { type: Number, default: 0 },
   },
   { timestamps: true }
 );

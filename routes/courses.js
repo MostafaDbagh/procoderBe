@@ -70,6 +70,7 @@ router.post(
     body("discountPercent")
       .optional()
       .isFloat({ min: 0, max: 100 }),
+    body("sortOrder").optional().isInt({ min: 0 }),
     body("currency")
       .optional()
       .trim()
@@ -99,6 +100,7 @@ router.put(
     body("discountPercent")
       .optional()
       .isFloat({ min: 0, max: 100 }),
+    body("sortOrder").optional().isInt({ min: 0 }),
     body("currency")
       .optional()
       .trim()
