@@ -162,10 +162,22 @@ exports.getMe = async (req, res) => {
  }
 };
 
-const RESET_OTP_EXPIRES_MS = 15 * 60 * 1000;
+const RESET_OTP_EXPIRES_MS = 5 * 60 * 1000;
 const RESET_MAX_OTP_ATTEMPTS = 5;
+const DEV_MOCK_OTP = "0000";
+
+function isDevMockOtpEnabled() {
+ return process.env.DEV_OTP_BYPASS === "true";
+}
 
 function generateOtp4() {
+ // Local/dev mock OTP to simplify frontend testing when Resend isn't configured yet.
+ if (
+ isDevMockOtpEnabled() &&
+ !String(process.env.RESEND_API_KEY || "").trim()
+ ) {
+ return DEV_MOCK_OTP;
+ }
  return String(crypto.randomInt(0, 10_000)).padStart(4, "0");
 }
 
@@ -245,6 +257,13 @@ exports.verifyParentResetOtp = async (req, res) => {
  .json({ message: "Enter the 4-digit code from your email" });
  }
 
+ if (isDevMockOtpEnabled() && code === DEV_MOCK_OTP) {
+ return res.json({
+ ok: true,
+ message: "Code verified. Continue to choose your new password.",
+ });
+ }
+
  const parentExists = await User.exists({ email: rawEmail, role: "parent" });
  if (!parentExists) {
  return res
@@ -296,6 +315,27 @@ exports.resetParentPasswordWithOtp = async (req, res) => {
  return res
  .status(400)
  .json({ message: "Enter the 4-digit code from your email" });
+ }
+
+ if (isDevMockOtpEnabled() && code === DEV_MOCK_OTP) {
+ const user = await User.findOne({ email: rawEmail, role: "parent" }).select(
+ "+password"
+ );
+ if (!user) {
+ return res
+ .status(400)
+ .json({ message: "Invalid or expired code. Request a new one." });
+ }
+ if (user.isActive === false) {
+ return res.status(403).json({ message: "Account deactivated" });
+ }
+ user.password = password;
+ await user.save();
+ await ParentPasswordResetOtp.deleteOne({ email: rawEmail });
+ return res.json({
+ ok: true,
+ message: "Password updated. You can sign in with your new password.",
+ });
  }
 
  const record = await ParentPasswordResetOtp.findOne({ email: rawEmail });

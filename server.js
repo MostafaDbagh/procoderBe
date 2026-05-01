@@ -2,7 +2,7 @@ const dotenv = require("dotenv");
 const connectDB = require("./config/db");
 const { createApp } = require("./createApp");
 
-dotenv.config();
+dotenv.config({ override: true });
 
 const PORT = process.env.PORT || 5000;
 const HOST = process.env.HOST || "0.0.0.0";
