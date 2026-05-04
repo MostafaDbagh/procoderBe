@@ -4,6 +4,7 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const ParentPasswordResetOtp = require("../models/ParentPasswordResetOtp");
 const { sendParentPasswordResetOtpEmail } = require("../services/parentPasswordResetMail");
+const { sendParentWelcomeEmail } = require("../services/welcomeMail");
 const { sendServerError } = require("../utils/safeErrorResponse");
 const Enrollment = require("../models/Enrollment");
 const {
@@ -81,6 +82,11 @@ exports.register = async (req, res) => {
  const token = signToken(user);
 
  res.status(201).json({ token, user: formatUser(user) });
+
+ // Fire welcome email after response — don't block registration on email failure
+ sendParentWelcomeEmail(user.email, user.name).catch((err) =>
+   console.error("[welcome-email] failed to send:", err.message)
+ );
  } catch (error) {
  sendServerError(res, error);
  }
@@ -221,7 +227,7 @@ exports.requestParentPasswordReset = async (req, res) => {
  );
 
  try {
- await sendParentPasswordResetOtpEmail(rawEmail, code, locale);
+ await sendParentPasswordResetOtpEmail(rawEmail, code);
  } catch (e) {
  console.error("[password-reset] send failed", e);
  await ParentPasswordResetOtp.deleteOne({ email: rawEmail });
