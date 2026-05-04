@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const Enrollment = require("../models/Enrollment");
 const Course = require("../models/Course");
 const PromoCode = require("../models/PromoCode");
+const { recordReferral } = require("./referralController");
 const { sendServerError } = require("../utils/safeErrorResponse");
 const { parsePagination, paginationMeta } = require("../utils/pagination");
 const { buildPricingForCourse } = require("../services/enrollmentPricing");
@@ -186,6 +187,16 @@ exports.create = async (req, res) => {
  );
 
  await session.commitTransaction();
+
+ // Record referral after commit — non-blocking, never fails the enrollment
+ recordReferral(promoDoc.code, {
+   name: enrollmentPayload.parentName,
+   email: enrollmentPayload.email,
+   enrollmentId: enrollment._id,
+   courseId: enrollment.courseId,
+   amountSaved: pricing.promoDiscountAmount,
+ }).catch((err) => console.error("[referral] recordReferral failed:", err?.message));
+
  respond(enrollment);
  } catch (e) {
  await session.abortTransaction();
