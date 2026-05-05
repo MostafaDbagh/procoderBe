@@ -75,7 +75,7 @@ exports.create = async (req, res) => {
  if (promoCodeRaw && pricing.promoError) {
  return res.status(400).json({ message: pricing.promoError });
  }
- if (promoCodeRaw && !pricing.promoDoc) {
+ if (promoCodeRaw && !pricing.promoDoc && !pricing.referralDoc) {
  return res.status(400).json({ message: "Invalid promo code" });
  }
  const promoDoc = pricing.promoDoc;

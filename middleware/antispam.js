@@ -53,10 +53,10 @@ const enrollmentLimiter = rateLimit({
   message: { message: "Too many enrollment attempts. Please try again later." },
 });
 
-/** Promo quote: max 5 per 15 min per IP */
+/** Promo quote: max 20 per 15 min per IP (auto-fires on step load, so needs headroom) */
 const promoQuoteLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 5,
+  max: 20,
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: "Too many promo lookups. Please try again later." },

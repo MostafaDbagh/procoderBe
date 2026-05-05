@@ -34,6 +34,14 @@ const enrollmentSchema = new mongoose.Schema(
     lessonsDone: { type: Number, default: 0 },
     nextSession: { type: Date, default: null },
     badges: [{ name: { type: String, required: true }, awardedAt: { type: Date, default: Date.now } }],
+    recordings: [
+      {
+        url: { type: String, required: true },
+        title: { type: String, default: "" },
+        sessionDate: { type: Date, default: Date.now },
+        addedAt: { type: Date, default: Date.now },
+      },
+    ],
     // Status
     status: {
       type: String,

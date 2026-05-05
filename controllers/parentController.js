@@ -76,7 +76,7 @@ exports.dashboard = async (req, res) => {
  activeCourses: activeEnrollments.length,
  completedCourses: completedEnrollments.length,
  totalLessons,
- hoursLearned: lessonsDone > 0 ? Math.round(lessonsDone * 0.75) : Math.round(totalLessons * 0.8),
+ lessonsCompleted: lessonsDone,
  badges: totalBadges,
  streak: Math.min(activeEnrollments.length * 4, 30),
  };

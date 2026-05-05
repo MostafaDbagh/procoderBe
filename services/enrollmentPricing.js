@@ -82,7 +82,15 @@ async function buildPricingForCourse(course, opts = {}) {
         code: promoCodeRaw.toUpperCase(),
         isActive: true,
       }).lean();
-      if (ref && (!ref.maxUses || ref.totalReferred < ref.maxUses)) {
+      const selfReferral = ref && parentEmail && ref.referrerEmail.toLowerCase() === parentEmail.toLowerCase();
+      const alreadyUsed = ref && parentEmail && ref.referrals.some(
+        (r) => String(r.email || "").toLowerCase() === parentEmail.toLowerCase()
+      );
+      if (ref && selfReferral) {
+        promoError = "You cannot use your own referral code.";
+      } else if (ref && alreadyUsed) {
+        promoError = "You have already used this referral code.";
+      } else if (ref && (!ref.maxUses || ref.totalReferred < ref.maxUses)) {
         referralDoc = ref;
         const base = ft.priceAfterFirstTimeDiscount;
         const afterReferral = roundMoney(base * (1 - ref.discountPercent / 100));

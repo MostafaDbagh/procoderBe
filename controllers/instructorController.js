@@ -88,6 +88,7 @@ exports.dashboard = async (req, res) => {
  lessonsDone: e.lessonsDone || 0,
  nextSession: e.nextSession || null,
  badges: e.badges || [],
+ recordings: e.recordings || [],
  totalLessons: (courseMap[e.courseId] || {}).lessons || 0,
  })),
  recentNotes,
@@ -185,7 +186,7 @@ exports.updateStudent = async (req, res) => {
       }
     }
 
-    const { lessonsDone, nextSession, addBadge, removeBadge } = req.body;
+    const { lessonsDone, nextSession, addBadge, removeBadge, addRecording, removeRecordingId } = req.body;
 
     if (typeof lessonsDone === "number") {
       const course = await Course.findOne({ slug: enrollment.courseId }).select("lessons").lean();
@@ -199,12 +200,26 @@ exports.updateStudent = async (req, res) => {
     if (removeBadge && typeof removeBadge === "string") {
       enrollment.badges = enrollment.badges.filter((b) => b.name !== removeBadge);
     }
+    if (addRecording && typeof addRecording.url === "string" && addRecording.url.trim()) {
+      enrollment.recordings.push({
+        url: addRecording.url.trim(),
+        title: typeof addRecording.title === "string" ? addRecording.title.trim() : "",
+        sessionDate: addRecording.sessionDate ? new Date(addRecording.sessionDate) : new Date(),
+        addedAt: new Date(),
+      });
+    }
+    if (removeRecordingId && typeof removeRecordingId === "string") {
+      enrollment.recordings = enrollment.recordings.filter(
+        (r) => String(r._id) !== removeRecordingId
+      );
+    }
 
     await enrollment.save();
     res.json({
       lessonsDone: enrollment.lessonsDone,
       nextSession: enrollment.nextSession,
       badges: enrollment.badges,
+      recordings: enrollment.recordings,
     });
   } catch (error) {
     sendServerError(res, error);

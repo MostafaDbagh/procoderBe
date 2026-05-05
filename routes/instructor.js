@@ -31,6 +31,10 @@ router.patch(
     body("nextSession").optional({ nullable: true }).trim(),
     body("addBadge").optional().isString().trim(),
     body("removeBadge").optional().isString().trim(),
+    body("addRecording.url").optional().isURL().withMessage("Valid URL required"),
+    body("addRecording.title").optional().isString().trim(),
+    body("addRecording.sessionDate").optional({ nullable: true }).trim(),
+    body("removeRecordingId").optional().isString().trim(),
   ]),
   instructorController.updateStudent
 );
