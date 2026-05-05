@@ -33,6 +33,8 @@ exports.dashboard = async (req, res) => {
 
  const assignedSlugs = await getInstructorCourseSlugs(user._id, user.assignedCourses);
  const courses = await Course.find({ slug: { $in: assignedSlugs }, isActive: true });
+ const courseMap = {};
+ courses.forEach((c) => { courseMap[c.slug] = c; });
 
  // Get all enrollments for those courses (active/confirmed)
  const enrollments = await Enrollment.find({
@@ -83,6 +85,10 @@ exports.dashboard = async (req, res) => {
  learningGoals: e.learningGoals,
  specialNeeds: e.specialNeeds,
  createdAt: e.createdAt,
+ lessonsDone: e.lessonsDone || 0,
+ nextSession: e.nextSession || null,
+ badges: e.badges || [],
+ totalLessons: (courseMap[e.courseId] || {}).lessons || 0,
  })),
  recentNotes,
  stats: {
@@ -158,6 +164,51 @@ exports.listNotes = async (req, res) => {
  } catch (error) {
  res.status(500).json({ message: "Server error" });
  }
+};
+
+/**
+ * PATCH /api/instructor/students/:enrollmentId
+ * Instructor updates progress, next session date, or awards a badge.
+ * Body: { lessonsDone?, nextSession?, addBadge? }
+ */
+exports.updateStudent = async (req, res) => {
+  if (!requireInstructor(req, res)) return;
+  try {
+    const enrollment = await Enrollment.findById(req.params.enrollmentId);
+    if (!enrollment) return res.status(404).json({ message: "Enrollment not found" });
+
+    if (req.user.role !== "admin") {
+      const instructorUser = await User.findById(req.user.id).select("assignedCourses");
+      const allowedSlugs = await getInstructorCourseSlugs(req.user.id, instructorUser?.assignedCourses);
+      if (!allowedSlugs.includes(enrollment.courseId)) {
+        return res.status(403).json({ message: "You can only update students in your courses" });
+      }
+    }
+
+    const { lessonsDone, nextSession, addBadge, removeBadge } = req.body;
+
+    if (typeof lessonsDone === "number") {
+      const course = await Course.findOne({ slug: enrollment.courseId }).select("lessons").lean();
+      const maxLessons = course?.lessons || Infinity;
+      enrollment.lessonsDone = Math.min(Math.max(0, lessonsDone), maxLessons);
+    }
+    if (nextSession !== undefined) enrollment.nextSession = nextSession ? new Date(nextSession) : null;
+    if (addBadge && typeof addBadge === "string" && addBadge.trim()) {
+      enrollment.badges.push({ name: addBadge.trim(), awardedAt: new Date() });
+    }
+    if (removeBadge && typeof removeBadge === "string") {
+      enrollment.badges = enrollment.badges.filter((b) => b.name !== removeBadge);
+    }
+
+    await enrollment.save();
+    res.json({
+      lessonsDone: enrollment.lessonsDone,
+      nextSession: enrollment.nextSession,
+      badges: enrollment.badges,
+    });
+  } catch (error) {
+    sendServerError(res, error);
+  }
 };
 
 /**

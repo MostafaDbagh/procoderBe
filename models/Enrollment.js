@@ -30,6 +30,10 @@ const enrollmentSchema = new mongoose.Schema(
     howDidYouHear: String,
     agreeTerms: { type: Boolean, required: true },
     agreePhotos: Boolean,
+    // Instructor-managed progress & scheduling
+    lessonsDone: { type: Number, default: 0 },
+    nextSession: { type: Date, default: null },
+    badges: [{ name: { type: String, required: true }, awardedAt: { type: Date, default: Date.now } }],
     // Status
     status: {
       type: String,

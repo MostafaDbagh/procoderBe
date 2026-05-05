@@ -24,4 +24,15 @@ router.post(
 router.get("/notes", instructorController.listNotes);
 router.delete("/notes/:id", instructorController.deleteNote);
 
+router.patch(
+  "/students/:enrollmentId",
+  validate([
+    body("lessonsDone").optional().isInt({ min: 0 }).toInt(),
+    body("nextSession").optional({ nullable: true }).trim(),
+    body("addBadge").optional().isString().trim(),
+    body("removeBadge").optional().isString().trim(),
+  ]),
+  instructorController.updateStudent
+);
+
 module.exports = router;
