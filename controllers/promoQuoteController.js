@@ -35,6 +35,8 @@ exports.quote = async (req, res) => {
  promoApplied: p.promoApplied,
  promoDiscountAmount: p.promoDiscountAmount,
  amountDue: p.amountDue,
+ isReferralCode: !!p.referralDoc,
+ referrerName: p.referralDoc ? p.referralDoc.referrerName : null,
  });
  } catch (e) {
  sendServerError(res, e);

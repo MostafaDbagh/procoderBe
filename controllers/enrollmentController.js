@@ -131,7 +131,7 @@ exports.create = async (req, res) => {
  firstTimeParentDiscountPercent: pricing.firstTimeParentDiscountPercent,
  firstTimeParentDiscountAmount: pricing.firstTimeParentDiscountAmount,
  priceAfterFirstTimeDiscount: pricing.priceAfterFirstTimeDiscount,
- promoCodeApplied: promoDoc ? promoDoc.code : null,
+ promoCodeApplied: promoDoc ? promoDoc.code : (pricing.referralDoc ? pricing.referralDoc.code : null),
  promoDiscountAmount: pricing.promoDiscountAmount,
  amountDue: pricing.amountDue,
  };
@@ -209,6 +209,20 @@ exports.create = async (req, res) => {
  } finally {
  session.endSession();
  }
+ } else if (pricing.referralDoc) {
+ const enrollment = await Enrollment.create(enrollmentPayload);
+ await Course.updateOne(
+ { slug: enrollment.courseId },
+ { $inc: { enrollmentCount: 1 } }
+ );
+ recordReferral(pricing.referralDoc.code, {
+   name: enrollmentPayload.parentName,
+   email: enrollmentPayload.email,
+   enrollmentId: enrollment._id,
+   courseId: enrollment.courseId,
+   amountSaved: pricing.promoDiscountAmount,
+ }).catch((err) => console.error("[referral] recordReferral failed:", err?.message));
+ respond(enrollment);
  } else {
  const enrollment = await Enrollment.create(enrollmentPayload);
  await Course.updateOne(

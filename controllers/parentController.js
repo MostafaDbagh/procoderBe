@@ -64,18 +64,20 @@ exports.dashboard = async (req, res) => {
  const activeEnrollments = enrollments.filter((e) => ["active", "confirmed"].includes(e.status));
  const completedEnrollments = enrollments.filter((e) => e.status === "completed");
  const totalLessons = courses.reduce((sum, c) => {
- const enrolled = enrollments.find((e) => e.courseId === c.slug && ["active", "confirmed", "completed"].includes(e.status));
+ const enrolled = enrollments.find((e) => e.courseId === c.slug && ["pending", "active", "confirmed", "completed"].includes(e.status));
  return sum + (enrolled ? c.lessons : 0);
  }, 0);
 
+ const lessonsDone = enrollments.reduce((sum, e) => sum + (e.lessonsDone || 0), 0);
+ const totalBadges = enrollments.reduce((sum, e) => sum + (e.badges ? e.badges.length : 0), 0);
+
  const stats = {
- coursesEnrolled: activeEnrollments.length + completedEnrollments.length,
+ coursesEnrolled: enrollments.filter((e) => ["pending", "active", "confirmed", "completed"].includes(e.status)).length,
  activeCourses: activeEnrollments.length,
  completedCourses: completedEnrollments.length,
  totalLessons,
- // Simulated until real progress tracking is built
- hoursLearned: Math.round(totalLessons * 0.8),
- badges: completedEnrollments.length * 2 + activeEnrollments.length,
+ hoursLearned: lessonsDone > 0 ? Math.round(lessonsDone * 0.75) : Math.round(totalLessons * 0.8),
+ badges: totalBadges,
  streak: Math.min(activeEnrollments.length * 4, 30),
  };
 

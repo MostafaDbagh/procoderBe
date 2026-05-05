@@ -1,4 +1,5 @@
 const Enrollment = require("../models/Enrollment");
+const Referral = require("../models/Referral");
 const { priceAfterCourseDiscount } = require("../utils/pricing");
 const { validatePromoForCourse, applyPromoToAmount } = require("./promoApply");
 
@@ -71,11 +72,30 @@ async function buildPricingForCourse(course, opts = {}) {
   let promoDiscountAmount = 0;
   let amountDue = ft.priceAfterFirstTimeDiscount;
   let promoDoc = null;
+  let referralDoc = null;
 
   if (promoCodeRaw) {
     const v = await validatePromoForCourse(promoCodeRaw, course);
     if (v.error) {
-      promoError = v.error;
+      // Fall back: check if the code is a referral code
+      const ref = await Referral.findOne({
+        code: promoCodeRaw.toUpperCase(),
+        isActive: true,
+      }).lean();
+      if (ref && (!ref.maxUses || ref.totalReferred < ref.maxUses)) {
+        referralDoc = ref;
+        const base = ft.priceAfterFirstTimeDiscount;
+        const afterReferral = roundMoney(base * (1 - ref.discountPercent / 100));
+        promoDiscountAmount = roundMoney(base - afterReferral);
+        amountDue = afterReferral;
+        promoApplied = {
+          code: ref.code,
+          discountType: "percent",
+          discountValue: ref.discountPercent,
+        };
+      } else {
+        promoError = v.error;
+      }
     } else if (v.doc) {
       const ap = applyPromoToAmount(
         ft.priceAfterFirstTimeDiscount,
@@ -111,6 +131,7 @@ async function buildPricingForCourse(course, opts = {}) {
     promoDiscountAmount,
     amountDue,
     promoDoc,
+    referralDoc,
   };
 }
 
