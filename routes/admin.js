@@ -7,11 +7,44 @@ const adminController = require("../controllers/adminController");
 const adminUserController = require("../controllers/adminUserController");
 const adminEnrollmentDetailController = require("../controllers/adminEnrollmentDetailController");
 const adminPaymentController = require("../controllers/adminPaymentController");
+const adminParentFeedbackController = require("../controllers/adminParentFeedbackController");
 const promoAdminController = require("../controllers/promoAdminController");
 
 const router = express.Router();
 
 router.get("/overview", auth, adminOnly, adminController.overview);
+
+router.get(
+  "/parent-feedback",
+  auth,
+  adminOnly,
+  adminParentFeedbackController.list
+);
+
+router.patch(
+  "/parent-feedback/:id",
+  auth,
+  adminOnly,
+  validate([
+    body("status")
+      .optional()
+      .isIn(["new", "read", "resolved"])
+      .withMessage("status must be new, read, or resolved"),
+    body("adminNote")
+      .optional()
+      .trim()
+      .isLength({ max: 2000 })
+      .withMessage("admin note too long (max 2000 characters)"),
+  ]),
+  adminParentFeedbackController.update
+);
+
+router.delete(
+  "/parent-feedback/:id",
+  auth,
+  adminOnly,
+  adminParentFeedbackController.remove
+);
 
 router.get(
   "/users",

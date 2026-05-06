@@ -3,6 +3,7 @@ const Enrollment = require("../models/Enrollment");
 const Course = require("../models/Course");
 const Note = require("../models/Note");
 const Homework = require("../models/Homework");
+const ParentFeedback = require("../models/ParentFeedback");
 const { sendServerError } = require("../utils/safeErrorResponse");
 
 const PARENT_PORTAL_ROLES = ["parent", "student"];
@@ -197,6 +198,40 @@ exports.getHomework = async (req, res) => {
     }
 
     res.json({ homework: hw, unreadCount: unreadIds.length });
+  } catch (error) {
+    sendServerError(res, error);
+  }
+};
+
+/**
+ * POST /api/parent/feedback
+ * Authenticated parent/student feedback for admins to review.
+ */
+exports.submitFeedback = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select("-password");
+    if (!assertParentPortalUser(user, res)) return;
+
+    const category = String(req.body.category || "note").trim();
+    const message = String(req.body.message || "").trim();
+
+    if (!message) {
+      return res.status(400).json({ message: "Feedback message is required" });
+    }
+
+    const feedback = await ParentFeedback.create({
+      user: user._id,
+      parentName: user.name,
+      parentEmail: user.email,
+      parentPhone: user.phone || "",
+      category,
+      message,
+    });
+
+    res.status(201).json({
+      message: "Feedback sent successfully",
+      feedback,
+    });
   } catch (error) {
     sendServerError(res, error);
   }

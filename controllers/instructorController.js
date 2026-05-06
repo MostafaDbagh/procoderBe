@@ -212,7 +212,7 @@ exports.updateStudent = async (req, res) => {
       }
     }
 
-    const { lessonsDone, nextSession, addBadge, removeBadge, addRecording, removeRecordingId } = req.body;
+    const { lessonsDone, nextSession, addBadge, removeBadge, addRecording, removeRecordingId, preferredDays, preferredTime } = req.body;
 
     if (typeof lessonsDone === "number") {
       const course = await Course.findOne({ slug: enrollment.courseId }).select("lessons").lean();
@@ -220,6 +220,11 @@ exports.updateStudent = async (req, res) => {
       enrollment.lessonsDone = Math.min(Math.max(0, lessonsDone), maxLessons);
     }
     if (nextSession !== undefined) enrollment.nextSession = nextSession ? new Date(nextSession) : null;
+    if (Array.isArray(preferredDays)) {
+      enrollment.preferredDays = preferredDays;
+      enrollment.markModified("preferredDays");
+    }
+    if (typeof preferredTime === "string") enrollment.preferredTime = preferredTime;
     if (addBadge && typeof addBadge === "string" && addBadge.trim()) {
       enrollment.badges.push({ name: addBadge.trim(), awardedAt: new Date() });
     }
@@ -244,6 +249,8 @@ exports.updateStudent = async (req, res) => {
     res.json({
       lessonsDone: enrollment.lessonsDone,
       nextSession: enrollment.nextSession,
+      preferredDays: enrollment.preferredDays,
+      preferredTime: enrollment.preferredTime,
       badges: enrollment.badges,
       recordings: enrollment.recordings,
     });

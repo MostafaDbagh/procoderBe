@@ -28,4 +28,21 @@ router.put(
 
 router.get("/homework", parentController.getHomework);
 
+router.post(
+  "/feedback",
+  validate([
+    body("category")
+      .optional()
+      .isIn(["note", "enhancement", "complaint", "feature", "other"])
+      .withMessage("Invalid feedback category"),
+    body("message")
+      .trim()
+      .notEmpty()
+      .withMessage("Feedback message is required")
+      .isLength({ max: 5000 })
+      .withMessage("Feedback message too long (max 5000 characters)"),
+  ]),
+  parentController.submitFeedback
+);
+
 module.exports = router;
