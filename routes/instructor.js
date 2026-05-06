@@ -39,4 +39,30 @@ router.patch(
   instructorController.updateStudent
 );
 
+// Homework routes
+router.post(
+  "/homework",
+  validate([
+    body("enrollmentId").trim().notEmpty().withMessage("enrollmentId is required"),
+    body("title").trim().notEmpty().withMessage("Title is required"),
+    body("description").optional().trim(),
+    body("dueDate").optional({ nullable: true }).trim(),
+  ]),
+  instructorController.createHomework
+);
+router.get("/homework", instructorController.listHomework);
+router.patch(
+  "/homework/:id",
+  validate([
+    body("title").optional().trim().notEmpty(),
+    body("description").optional().trim(),
+    body("dueDate").optional({ nullable: true }).trim(),
+    body("status").optional().isIn(["assigned", "submitted", "graded"]),
+    body("grade").optional().trim(),
+    body("feedback").optional().trim(),
+  ]),
+  instructorController.updateHomework
+);
+router.delete("/homework/:id", instructorController.deleteHomework);
+
 module.exports = router;

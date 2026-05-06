@@ -2,6 +2,8 @@ const User = require("../models/User");
 const Enrollment = require("../models/Enrollment");
 const Course = require("../models/Course");
 const Note = require("../models/Note");
+const Homework = require("../models/Homework");
+const Team = require("../models/Team");
 const { sendServerError } = require("../utils/safeErrorResponse");
 
 function requireInstructor(req, res) {
@@ -12,11 +14,35 @@ function requireInstructor(req, res) {
  return true;
 }
 
-/** Course slugs this user may teach: Course.instructors array + legacy User.assignedCourses. */
-async function getInstructorCourseSlugs(userId, assignedCourses) {
+/**
+ * Course slugs this user may teach.
+ * Checks three sources:
+ *   1. User.assignedCourses (slug list on the user doc)
+ *   2. Course.instructors containing the User _id directly
+ *   3. Course.instructors containing a Team member _id whose name matches the user's name
+ *      (legacy: admin UI used to assign Team members instead of User accounts)
+ */
+async function getInstructorCourseSlugs(userId, assignedCourses, userName) {
  const fromUser = Array.isArray(assignedCourses) ? assignedCourses : [];
- const courses = await Course.find({ instructors: userId, isActive: true }).select("slug");
- const fromDoc = courses.map((c) => c.slug);
+
+ // Source 2: courses that directly reference this User ID
+ const byUserId = await Course.find({ instructors: userId }).select("slug");
+
+ // Source 3: courses assigned via matching Team member name (legacy Team-ID assignments)
+ let byTeamId = [];
+ if (userName) {
+  const nameRegex = new RegExp(`^${userName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i");
+  const teamMatches = await Team.find({ "name.en": nameRegex }).select("_id");
+  if (teamMatches.length > 0) {
+   const teamIds = teamMatches.map((t) => t._id);
+   byTeamId = await Course.find({ instructors: { $in: teamIds } }).select("slug");
+  }
+ }
+
+ const fromDoc = [
+  ...byUserId.map((c) => c.slug),
+  ...byTeamId.map((c) => c.slug),
+ ];
  return [...new Set([...fromUser, ...fromDoc])];
 }
 
@@ -31,8 +57,8 @@ exports.dashboard = async (req, res) => {
  const user = await User.findById(req.user.id).select("-password");
  if (!user) return res.status(404).json({ message: "User not found" });
 
- const assignedSlugs = await getInstructorCourseSlugs(user._id, user.assignedCourses);
- const courses = await Course.find({ slug: { $in: assignedSlugs }, isActive: true });
+ const assignedSlugs = await getInstructorCourseSlugs(user._id, user.assignedCourses, user.name);
+ const courses = await Course.find({ slug: { $in: assignedSlugs } });
  const courseMap = {};
  courses.forEach((c) => { courseMap[c.slug] = c; });
 
@@ -122,7 +148,7 @@ exports.createNote = async (req, res) => {
  if (!instructorUser) return res.status(404).json({ message: "User not found" });
 
  if (req.user.role !== "admin") {
- const allowedSlugs = await getInstructorCourseSlugs(req.user.id, instructorUser.assignedCourses);
+ const allowedSlugs = await getInstructorCourseSlugs(req.user.id, instructorUser.assignedCourses, instructorUser.name);
  if (!allowedSlugs.includes(enrollment.courseId)) {
  return res.status(403).json({ message: "You can only add notes for students in your courses" });
  }
@@ -179,8 +205,8 @@ exports.updateStudent = async (req, res) => {
     if (!enrollment) return res.status(404).json({ message: "Enrollment not found" });
 
     if (req.user.role !== "admin") {
-      const instructorUser = await User.findById(req.user.id).select("assignedCourses");
-      const allowedSlugs = await getInstructorCourseSlugs(req.user.id, instructorUser?.assignedCourses);
+      const instructorUser = await User.findById(req.user.id).select("name assignedCourses");
+      const allowedSlugs = await getInstructorCourseSlugs(req.user.id, instructorUser?.assignedCourses, instructorUser?.name);
       if (!allowedSlugs.includes(enrollment.courseId)) {
         return res.status(403).json({ message: "You can only update students in your courses" });
       }
@@ -242,4 +268,102 @@ exports.deleteNote = async (req, res) => {
  } catch (error) {
  res.status(500).json({ message: "Server error" });
  }
+};
+
+/**
+ * POST /api/instructor/homework
+ * Create a homework assignment for a student.
+ */
+exports.createHomework = async (req, res) => {
+  if (!requireInstructor(req, res)) return;
+  try {
+    const { enrollmentId, title, description, dueDate } = req.body;
+    if (!enrollmentId || !title) {
+      return res.status(400).json({ message: "enrollmentId and title are required" });
+    }
+
+    const enrollment = await Enrollment.findById(enrollmentId);
+    if (!enrollment) return res.status(404).json({ message: "Enrollment not found" });
+
+    const instructorUser = await User.findById(req.user.id).select("name assignedCourses");
+    if (!instructorUser) return res.status(404).json({ message: "Instructor not found" });
+
+    if (req.user.role !== "admin") {
+      const allowedSlugs = await getInstructorCourseSlugs(req.user.id, instructorUser.assignedCourses, instructorUser.name);
+      if (!allowedSlugs.includes(enrollment.courseId)) {
+        return res.status(403).json({ message: "You can only assign homework for students in your courses" });
+      }
+    }
+
+    const hw = await Homework.create({
+      instructor: req.user.id,
+      instructorName: instructorUser.name,
+      enrollment: enrollmentId,
+      courseId: enrollment.courseId,
+      childName: enrollment.childName,
+      parentEmail: enrollment.email,
+      title: title.trim(),
+      description: (description || "").trim(),
+      dueDate: dueDate ? new Date(dueDate) : null,
+    });
+
+    res.status(201).json(hw);
+  } catch (error) {
+    sendServerError(res, error);
+  }
+};
+
+/**
+ * GET /api/instructor/homework
+ * List all homework assigned by this instructor.
+ */
+exports.listHomework = async (req, res) => {
+  if (!requireInstructor(req, res)) return;
+  try {
+    const filter = { instructor: req.user.id };
+    if (req.query.enrollmentId) filter.enrollment = req.query.enrollmentId;
+    const hw = await Homework.find(filter).sort({ createdAt: -1 }).limit(200).lean();
+    res.json(hw);
+  } catch (error) {
+    sendServerError(res, error);
+  }
+};
+
+/**
+ * PATCH /api/instructor/homework/:id
+ * Update homework (title, description, dueDate, status, grade, feedback).
+ */
+exports.updateHomework = async (req, res) => {
+  if (!requireInstructor(req, res)) return;
+  try {
+    const hw = await Homework.findOne({ _id: req.params.id, instructor: req.user.id });
+    if (!hw) return res.status(404).json({ message: "Homework not found" });
+
+    const { title, description, dueDate, status, grade, feedback } = req.body;
+    if (title !== undefined) hw.title = title.trim();
+    if (description !== undefined) hw.description = description.trim();
+    if (dueDate !== undefined) hw.dueDate = dueDate ? new Date(dueDate) : null;
+    if (status !== undefined && ["assigned", "submitted", "graded"].includes(status)) hw.status = status;
+    if (grade !== undefined) hw.grade = grade.trim();
+    if (feedback !== undefined) hw.feedback = feedback.trim();
+
+    await hw.save();
+    res.json(hw);
+  } catch (error) {
+    sendServerError(res, error);
+  }
+};
+
+/**
+ * DELETE /api/instructor/homework/:id
+ */
+exports.deleteHomework = async (req, res) => {
+  if (!requireInstructor(req, res)) return;
+  try {
+    const hw = await Homework.findOneAndDelete({ _id: req.params.id, instructor: req.user.id });
+    if (!hw) return res.status(404).json({ message: "Homework not found" });
+    res.json({ message: "Homework deleted" });
+  } catch (error) {
+    sendServerError(res, error);
+  }
 };

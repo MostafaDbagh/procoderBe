@@ -26,4 +26,6 @@ router.put(
   parentController.updateProfile
 );
 
+router.get("/homework", parentController.getHomework);
+
 module.exports = router;

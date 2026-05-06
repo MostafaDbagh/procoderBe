@@ -2,6 +2,7 @@ const User = require("../models/User");
 const Enrollment = require("../models/Enrollment");
 const Course = require("../models/Course");
 const Note = require("../models/Note");
+const Homework = require("../models/Homework");
 const { sendServerError } = require("../utils/safeErrorResponse");
 
 const PARENT_PORTAL_ROLES = ["parent", "student"];
@@ -173,4 +174,30 @@ exports.updateProfile = async (req, res) => {
  } catch (error) {
  sendServerError(res, error);
  }
+};
+
+/**
+ * GET /api/parent/homework
+ * Returns all homework for enrollments belonging to this parent.
+ */
+exports.getHomework = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select("-password");
+    if (!assertParentPortalUser(user, res)) return;
+
+    const hw = await Homework.find({ parentEmail: user.email })
+      .sort({ createdAt: -1 })
+      .limit(200)
+      .lean();
+
+    // Mark unread as read
+    const unreadIds = hw.filter((h) => !h.readByParent).map((h) => h._id);
+    if (unreadIds.length > 0) {
+      await Homework.updateMany({ _id: { $in: unreadIds } }, { readByParent: true });
+    }
+
+    res.json({ homework: hw, unreadCount: unreadIds.length });
+  } catch (error) {
+    sendServerError(res, error);
+  }
 };
