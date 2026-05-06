@@ -23,7 +23,9 @@ const auth = async (req, res, next) => {
 
   let u;
   try {
-    u = await User.findById(decoded.id).select("isActive").lean();
+    u = await User.findById(decoded.id)
+      .select("isActive role email name username")
+      .lean();
   } catch (e) {
     console.error("[auth] user lookup failed", e);
     return res
@@ -38,7 +40,14 @@ const auth = async (req, res, next) => {
     return res.status(401).json({ message: "Account deactivated" });
   }
 
-  req.user = decoded;
+  req.user = {
+    ...decoded,
+    id: String(u._id || decoded.id),
+    role: u.role,
+    email: u.email,
+    name: u.name,
+    username: u.username,
+  };
   next();
 };
 
