@@ -129,6 +129,14 @@ router.get(
   adminEnrollmentDetailController.detail
 );
 
+router.delete(
+  "/enrollments/:id",
+  auth,
+  adminOnly,
+  validate([param("id").isMongoId()]),
+  adminEnrollmentDetailController.remove
+);
+
 router.get(
   "/payments",
   auth,

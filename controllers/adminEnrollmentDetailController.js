@@ -1,6 +1,9 @@
 const Enrollment = require("../models/Enrollment");
 const User = require("../models/User");
 const Note = require("../models/Note");
+const Payment = require("../models/Payment");
+const Homework = require("../models/Homework");
+const Referral = require("../models/Referral");
 const { sendServerError } = require("../utils/safeErrorResponse");
 
 exports.detail = async (req, res) => {
@@ -39,6 +42,35 @@ exports.detail = async (req, res) => {
  : null,
  instructorNotes,
  });
+ } catch (error) {
+ sendServerError(res, error);
+ }
+};
+
+exports.remove = async (req, res) => {
+ try {
+ const enrollment = await Enrollment.findById(req.params.id);
+ if (!enrollment) {
+ return res.status(404).json({ message: "Enrollment not found" });
+ }
+
+ const enrollmentId = enrollment._id;
+
+ // Cascade: revenue stats aggregate over Enrollment + Payment live, so deleting
+ // the enrollment alone isn't enough — its Payments must go too for revenue to update.
+ await Promise.all([
+ Payment.deleteMany({ enrollment: enrollmentId }),
+ Note.deleteMany({ enrollment: enrollmentId }),
+ Homework.deleteMany({ enrollment: enrollmentId }),
+ Referral.updateMany(
+ { "referrals.enrollmentId": enrollmentId },
+ { $pull: { referrals: { enrollmentId } } }
+ ),
+ ]);
+
+ await enrollment.deleteOne();
+
+ res.json({ ok: true });
  } catch (error) {
  sendServerError(res, error);
  }
