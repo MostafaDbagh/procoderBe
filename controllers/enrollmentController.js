@@ -6,6 +6,7 @@ const { recordReferral } = require("./referralController");
 const { sendServerError } = require("../utils/safeErrorResponse");
 const { parsePagination, paginationMeta } = require("../utils/pagination");
 const { buildPricingForCourse } = require("../services/enrollmentPricing");
+const logger = require("../utils/logger");
 
 function escapeRegex(s) {
  return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -195,7 +196,7 @@ exports.create = async (req, res) => {
    enrollmentId: enrollment._id,
    courseId: enrollment.courseId,
    amountSaved: pricing.promoDiscountAmount,
- }).catch((err) => console.error("[referral] recordReferral failed:", err?.message));
+ }).catch((err) => logger.error("[referral] recordReferral failed:", err?.message));
 
  respond(enrollment);
  } catch (e) {
@@ -221,7 +222,7 @@ exports.create = async (req, res) => {
    enrollmentId: enrollment._id,
    courseId: enrollment.courseId,
    amountSaved: pricing.promoDiscountAmount,
- }).catch((err) => console.error("[referral] recordReferral failed:", err?.message));
+ }).catch((err) => logger.error("[referral] recordReferral failed:", err?.message));
  respond(enrollment);
  } else {
  const enrollment = await Enrollment.create(enrollmentPayload);

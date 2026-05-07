@@ -6,6 +6,7 @@
 
 const { validateAndNormalizeProfile, mergeProfiles } = require("../config/childProfileSchema");
 const { enrichProfileWithEvidenceContext } = require("../config/evidenceBasedFramework");
+const logger = require("../utils/logger");
 
 /** Strip LLM-hallucinated `arabic` when the parent text clearly describes STEM/robotics but never mentions Arabic/Quranic study. */
 const EXPLICIT_ARABIC_CONTEXT_RE =
@@ -175,7 +176,7 @@ async function parseStructuredLLM(sanitized, locale) {
         if (norm) return norm;
       }
     } catch (e) {
-      console.error(`[aiParserGate] ${provider} parse failed:`, e.message);
+      logger.error(`[aiParserGate] ${provider} parse failed:`, e.message);
     }
   }
   return null;
@@ -202,7 +203,7 @@ async function parseWithGate(text, locale = "en", options = {}) {
     const rawLlm = await parseStructuredLLM(sanitized, locale);
     if (rawLlm) llmNorm = validateAndNormalizeProfile(rawLlm, { adjectives, interests });
   } catch (e) {
-    console.error("[aiParserGate] LLM path failed:", e.message);
+    logger.error("[aiParserGate] LLM path failed:", e.message);
   }
 
   if (!llmNorm) return enrichProfileWithEvidenceContext(local);

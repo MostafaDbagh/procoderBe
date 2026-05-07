@@ -7,12 +7,13 @@
  *  3. Flood detection — per-IP sliding window that blocks after `maxHits` in `windowMs`
  */
 const rateLimit = require("express-rate-limit");
+const logger = require("../utils/logger");
 
 // ── 1. Honeypot check ──
 function honeypot(req, res, next) {
   // If the hidden `_hp` field has any value a bot filled it in
   if (req.body && req.body._hp) {
-    console.warn(`[antispam] honeypot triggered | IP ${req.ip} | ${req.method} ${req.originalUrl}`);
+    logger.warn(`[antispam] honeypot triggered | IP ${req.ip} | ${req.method} ${req.originalUrl}`);
     // Return a fake 200 so bots think it succeeded
     return res.status(200).json({ ok: true });
   }
@@ -26,7 +27,7 @@ function timingGate(minMs = 3000) {
   return (req, res, next) => {
     const t = Number(req.body?._t);
     if (t && Date.now() - t < minMs) {
-      console.warn(`[antispam] timing gate triggered (${Date.now() - t}ms) | IP ${req.ip} | ${req.originalUrl}`);
+      logger.warn(`[antispam] timing gate triggered (${Date.now() - t}ms) | IP ${req.ip} | ${req.originalUrl}`);
       return res.status(429).json({ message: "Please slow down and try again" });
     }
     next();

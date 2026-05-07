@@ -1,11 +1,12 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const logger = require("../utils/logger");
 
 const auth = async (req, res, next) => {
   const token = req.header("Authorization")?.replace("Bearer ", "");
 
   if (!token) {
-    console.warn(`[auth] denied: no token | ${req.method} ${req.originalUrl} | IP ${req.ip}`);
+    logger.warn(`[auth] denied: no token | ${req.method} ${req.originalUrl} | IP ${req.ip}`);
     return res.status(401).json({ message: "No token, authorization denied" });
   }
 
@@ -13,7 +14,7 @@ const auth = async (req, res, next) => {
   try {
     decoded = jwt.verify(token, process.env.JWT_SECRET);
   } catch {
-    console.warn(`[auth] denied: invalid token | ${req.method} ${req.originalUrl} | IP ${req.ip}`);
+    logger.warn(`[auth] denied: invalid token | ${req.method} ${req.originalUrl} | IP ${req.ip}`);
     return res.status(401).json({ message: "Token is not valid" });
   }
 
@@ -27,7 +28,7 @@ const auth = async (req, res, next) => {
       .select("isActive role email name username")
       .lean();
   } catch (e) {
-    console.error("[auth] user lookup failed", e);
+    logger.error("[auth] user lookup failed", e);
     return res
       .status(503)
       .json({ message: "Service temporarily unavailable" });

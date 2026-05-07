@@ -1,5 +1,6 @@
 const Course = require("../models/Course");
 const defaultCourses = require("../data/defaultCourses");
+const logger = require("../utils/logger");
 
 /**
  * Set catalog price/currency from defaultCourses when a default slug is still free (price ≤ 0).
@@ -18,7 +19,7 @@ async function syncPricesForFreeDefaultSlugs() {
       { $set: { price, currency } }
     );
     if (res.modifiedCount > 0) {
-      console.log(`[courses] synced price for ${c.slug}: ${price} ${currency}`);
+      logger.info(`[courses] synced price for ${c.slug}: ${price} ${currency}`);
     }
   }
 }
@@ -50,7 +51,7 @@ async function ensureDefaultCourses() {
     );
 
     const after = await Course.countDocuments({ isActive: true });
-    console.log(`[courses] default catalog ensured (${after} active courses)`);
+    logger.info(`[courses] default catalog ensured (${after} active courses)`);
   }
 
   await syncPricesForFreeDefaultSlugs();

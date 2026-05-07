@@ -1,3 +1,5 @@
+const logger = require("../utils/logger");
+
 /**
  * Welcome email sent once on parent registration.
  * Required env: RESEND_API_KEY, RESEND_FROM_EMAIL, RESEND_FROM_NAME
@@ -6,7 +8,7 @@ async function sendParentWelcomeEmail(to, parentName) {
   const apiKey = process.env.RESEND_API_KEY?.trim();
   if (!apiKey) {
     if (process.env.NODE_ENV !== "production") {
-      console.warn(`[welcome] RESEND_API_KEY missing — skipping welcome email for ${to}`);
+      logger.warn(`[welcome] RESEND_API_KEY missing — skipping welcome email for ${to}`);
       return;
     }
     throw new Error("RESEND_API_KEY is not set");
@@ -42,9 +44,7 @@ async function sendParentWelcomeEmail(to, parentName) {
   }
 
   const data = await response.json().catch(() => null);
-  if (process.env.NODE_ENV !== "production") {
-    console.info("[EMAIL_SUCCESS] Welcome email sent", { email: to, resendId: data?.id });
-  }
+  logger.info("[EMAIL_SUCCESS] Welcome email sent", { email: to, resendId: data?.id });
 }
 
 function buildEn(name, siteUrl, fromName) {

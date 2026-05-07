@@ -6,6 +6,7 @@ const ParentPasswordResetOtp = require("../models/ParentPasswordResetOtp");
 const { sendParentPasswordResetOtpEmail } = require("../services/parentPasswordResetMail");
 const { sendParentWelcomeEmail } = require("../services/welcomeMail");
 const { sendServerError } = require("../utils/safeErrorResponse");
+const logger = require("../utils/logger");
 const Enrollment = require("../models/Enrollment");
 const {
  hasMatchingEnrollmentForParentSignup,
@@ -85,7 +86,7 @@ exports.register = async (req, res) => {
 
  // Fire welcome email after response — don't block registration on email failure
  sendParentWelcomeEmail(user.email, user.name).catch((err) =>
-   console.error("[welcome-email] failed to send:", err.message)
+   logger.error("[welcome-email] failed to send:", err.message)
  );
  } catch (error) {
  sendServerError(res, error);
@@ -102,7 +103,7 @@ exports.login = async (req, res) => {
  const dummyHash = "$2a$12$000000000000000000000uGWDDnVVG2e0sweOaGMeJjhtPsG.gIEC";
  const isMatch = await bcrypt.compare(password, user?.password || dummyHash);
  if (!user || !isMatch) {
- console.warn(`[auth] login failed | email=${email} | IP ${req.ip}`);
+ logger.warn(`[auth] login failed | email=${email} | IP ${req.ip}`);
  return res.status(400).json({ message: "Invalid credentials" });
  }
  if (user.isActive === false) {
@@ -208,7 +209,7 @@ exports.requestParentPasswordReset = async (req, res) => {
  .select("_id")
  .lean();
  if (!user) {
- console.info(`[password-reset] no parent user | ${rawEmail}`);
+ logger.info(`[password-reset] no parent user | ${rawEmail}`);
  return res.json(generic);
  }
 
@@ -229,7 +230,7 @@ exports.requestParentPasswordReset = async (req, res) => {
  try {
  await sendParentPasswordResetOtpEmail(rawEmail, code);
  } catch (e) {
- console.error("[password-reset] send failed", e);
+ logger.error("[password-reset] send failed", e);
  await ParentPasswordResetOtp.deleteOne({ email: rawEmail });
  return res.status(503).json({
  message:

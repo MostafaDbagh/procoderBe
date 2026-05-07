@@ -2,6 +2,7 @@ const Course = require("../models/Course");
 const ensureDefaultCourses = require("../services/ensureDefaultCourses");
 const { coerceGender } = require("../config/childProfileSchema");
 const { evidenceScoringDelta, enrichProfileWithEvidenceContext } = require("../config/evidenceBasedFramework");
+const logger = require("../utils/logger");
 
 // ============================================================
 // STEMTECHLAB AI PARSER — Zero API dependency
@@ -1458,7 +1459,7 @@ Write a warm, personalized message explaining why these courses fit this child. 
  const result = await provider.call(prompt);
  if (result && result.length > 20) return result;
  } catch (err) {
- console.error(`[AI enhance] ${provider.name} failed:`, err.message);
+ logger.error(`[AI enhance] ${provider.name} failed:`, err.message);
  }
  }
  return fallbackMessage;
@@ -1469,7 +1470,7 @@ Write a warm, personalized message explaining why these courses fit this child. 
  new Promise((resolve) => setTimeout(() => resolve(null), enhanceTimeoutMs)),
  ]);
  if (enhanced != null) return enhanced;
- console.warn("[AI enhance] timed out; using template message");
+ logger.warn("[AI enhance] timed out; using template message");
  } catch {}
 
  return fallbackMessage;
@@ -1612,10 +1613,11 @@ exports.recommend = async (req, res) => {
   : "";
  const combinedInput = historyContext ? `${historyContext} ${message}` : message;
 
- console.log("[Recommend] Parsing child profile (parser gate)...");
+ logger.debug("[Recommend] Parsing child profile (parser gate)...");
  const { parseWithGate } = require("../services/aiParserGate");
  const profile = await parseWithGate(combinedInput.slice(0, 4000), locale);
- console.log("[Recommend] Profile:", JSON.stringify(profile));
+ // Profile contains parent-supplied PII (child name, age, free-text). Debug only.
+ logger.debug("[Recommend] Profile:", JSON.stringify(profile));
 
  // ── STEP 2: SCORE & RANK courses ──
  const scored = scoreCourses(profile, courses);
@@ -1628,7 +1630,7 @@ exports.recommend = async (req, res) => {
  const topCourseObjects = topCourses.map((s) => courses.find((c) => c.slug === s.slug)).filter(Boolean);
  const recommendedSlugs = topCourses.map((s) => s.slug);
 
- console.log("[Recommend] Scores:", topCourses.map((s) => `${s.slug}(${s.score})`).join(", "));
+ logger.debug("[Recommend] Scores:", topCourses.map((s) => `${s.slug}(${s.score})`).join(", "));
 
  // ── STEP 3: GENERATE MESSAGE ──
  const templateMessage = generateMessage(profile, recommendedSlugs, locale);
@@ -1655,7 +1657,7 @@ exports.recommend = async (req, res) => {
  learningPath,
  });
  } catch (error) {
- console.error("[Recommend] Error:", error);
+ logger.error("[Recommend] Error:", error);
  return res.status(500).json({ error: "Failed to get recommendation" });
  }
 };

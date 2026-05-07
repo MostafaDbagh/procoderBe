@@ -1,4 +1,5 @@
 const { cloudinary, isCloudinaryConfigured } = require("../config/cloudinary");
+const logger = require("./logger");
 
 /**
  * Remove an image from Cloudinary (by public_id). Used for team + course assets.
@@ -13,7 +14,7 @@ async function destroyCloudinaryImage(publicId) {
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    console.warn("[cloudinary] destroy failed:", id, msg);
+    logger.warn("[cloudinary] destroy failed:", id, msg);
   }
 }
 

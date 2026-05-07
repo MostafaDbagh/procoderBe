@@ -1,3 +1,5 @@
+const logger = require("../utils/logger");
+
 /**
  * Password reset OTP email via Resend.
  * Required env: RESEND_API_KEY, RESEND_FROM_EMAIL, RESEND_FROM_NAME
@@ -6,7 +8,7 @@ async function sendParentPasswordResetOtpEmail(to, code) {
   const apiKey = process.env.RESEND_API_KEY?.trim();
   if (!apiKey) {
     if (process.env.NODE_ENV !== "production") {
-      console.warn(
+      logger.warn(
         `[password-reset] RESEND_API_KEY missing — dev OTP for ${to}: ${code} (mock: use 0000 on localhost)`
       );
       return;
@@ -43,9 +45,7 @@ async function sendParentPasswordResetOtpEmail(to, code) {
   }
 
   const data = await response.json().catch(() => null);
-  if (process.env.NODE_ENV !== "production") {
-    console.info("[EMAIL_SUCCESS] OTP email sent via Resend", { email: to, resendId: data?.id });
-  }
+  logger.info("[EMAIL_SUCCESS] OTP email sent via Resend", { email: to, resendId: data?.id });
 }
 
 function buildEn(code, fromName) {

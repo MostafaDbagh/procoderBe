@@ -97,15 +97,18 @@ function createApp() {
   }
 
   // ── Global rate limit ──
-  // Skip for authenticated requests (admin dashboard makes many rapid calls)
+  // Authenticated requests get a higher ceiling (admin dashboards burst), but
+  // never bypass entirely — a leaked token would otherwise hammer the API uncapped.
   app.use(
     rateLimit({
       windowMs: 15 * 60 * 1000,
-      max: isProd ? 300 : 5000,
+      max: (req) =>
+        req.headers.authorization
+          ? (isProd ? 2000 : 10000)
+          : (isProd ? 300 : 5000),
       standardHeaders: true,
       legacyHeaders: false,
       message: { message: "Too many requests, please try again later" },
-      skip: (req) => !!req.headers.authorization,
     })
   );
 
