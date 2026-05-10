@@ -232,7 +232,8 @@ exports.overview = async (req, res) => {
  Enrollment.countDocuments({ status: { $ne: "cancelled" } }),
  ]);
 
- const usersTotal = await User.countDocuments();
+ // "Users" on the admin dashboard means clients (parents) only — instructors and admins are excluded.
+ const usersTotal = await User.countDocuments({ role: "parent" });
 
  const rev = revenueAgg[0] || {
  committedByCurrency: [],
