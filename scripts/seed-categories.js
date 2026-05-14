@@ -40,16 +40,7 @@ const CATEGORIES = [
     sortOrder: 3,
     isActive: true,
   },
-  {
-    slug: "arabic",
-    title: { en: "Arabic Language", ar: "اللغة العربية" },
-    description: {
-      en: "Beautiful letters, meaningful words, and the joy of expression — taught with warmth by native Arabic teachers.",
-      ar: "حروف جميلة وكلمات ذات معنى ومتعة التعبير — تُدرَّس بدفء على يد معلمين عرب.",
-    },
-    sortOrder: 4,
-    isActive: true,
-  },
+ 
   {
     slug: "game-development",
     title: { en: "Game Development", ar: "تطوير الألعاب" },

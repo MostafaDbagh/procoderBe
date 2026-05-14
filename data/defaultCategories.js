@@ -27,15 +27,7 @@ module.exports = [
  },
  sortOrder: 30,
  },
- {
- slug: "arabic",
- title: { en: "Arabic Language", ar: "اللغة العربية" },
- description: {
- en: "Beautiful letters, meaningful words, and the joy of expression — taught with warmth by native Arabic teachers.",
- ar: "حروف جميلة وكلمات ذات معنى ومتعة التعبير — يُدرّسها بدفء معلمون عرب أصليون.",
- },
- sortOrder: 40,
- },
+
  {
  slug: "arabic",
  title: { en: "Arabic Studies", ar: "اللغة العربية" },
