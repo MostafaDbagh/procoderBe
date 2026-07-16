@@ -127,6 +127,7 @@ function createApp() {
   app.use("/api/promos", require("./routes/promos"));
   app.use("/api/enrollments", require("./routes/enrollments"));
   app.use("/api/contact", require("./routes/contact"));
+  app.use("/api/explorer-requests", require("./routes/explorerRequests"));
   app.use("/api/parent", require("./routes/parent"));
   app.use("/api/instructor", require("./routes/instructor"));
   app.use("/api/team", require("./routes/team"));
