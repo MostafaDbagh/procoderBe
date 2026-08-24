@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 
 /**
- * A structured request from the Explorer journey window (/explorer):
+ * A structured request from a learning-journey level page (/learning-path/<level>):
  *  - "registration"  → "Register for Explorer" join request (parent + child details)
  *  - "call_request"  → "Request a short call with the team"
  *
@@ -28,6 +28,15 @@ const explorerRequestSchema = new mongoose.Schema(
     },
     locale: { type: String, enum: ["en", "ar"], default: "en" },
 
+    /** Which of the five STL levels the parent applied from. */
+    level: {
+      type: String,
+      enum: ["explorer", "builder", "creator", "innovator", "pro"],
+      default: "explorer",
+      lowercase: true,
+      trim: true,
+    },
+
     // Parent
     parentName: { type: String, required: true, trim: true, maxlength: 100 },
     email: { type: String, required: true, trim: true, lowercase: true },
@@ -45,13 +54,18 @@ const explorerRequestSchema = new mongoose.Schema(
     note: { type: String, trim: true, maxlength: 2000 },
 
     // Fit check
+    // Level-agnostic outcome codes. The EXPLORER_* values are retained so
+    // requests captured before the five-level rollout still validate.
     fitOutcome: {
       type: String,
       enum: [
+        "LIKELY_FIT",
+        "WITH_REVIEW",
+        "CHECK_OTHER_STAGE",
+        "PRE_START_REVIEW",
         "EXPLORER_LIKELY_FIT",
         "EXPLORER_WITH_REVIEW",
         "CHECK_HIGHER_STAGE",
-        "PRE_START_REVIEW",
         "",
       ],
       default: "",

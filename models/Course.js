@@ -18,6 +18,19 @@ const courseSchema = new mongoose.Schema(
       enum: ["beginner", "intermediate", "advanced"],
       required: true,
     },
+    /**
+     * Which stage of the five-level STL learning journey this course belongs to
+     * (Explore -> Build -> Create -> Innovate -> Specialize). Drives grouping on
+     * /learning-path. Empty means "not placed yet" and hides the course from the
+     * journey pages while leaving it visible in the flat catalogue.
+     */
+    stlLevel: {
+      type: String,
+      enum: ["explorer", "builder", "creator", "innovator", "pro", ""],
+      default: "",
+      lowercase: true,
+      trim: true,
+    },
     lessons: { type: Number, required: true },
     durationWeeks: { type: Number, required: true },
     iconName: { type: String, default: "BookOpen" },
@@ -53,6 +66,7 @@ const courseSchema = new mongoose.Schema(
 );
 
 courseSchema.index({ isActive: 1, category: 1 });
+courseSchema.index({ isActive: 1, stlLevel: 1, sortOrder: 1 });
 courseSchema.index({ isActive: 1, enrollmentCount: -1 });
 courseSchema.index({ slug: 1, isActive: 1 });
 

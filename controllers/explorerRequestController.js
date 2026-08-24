@@ -7,6 +7,8 @@ function escapeRegex(s) {
 }
 
 /** Whitelist body fields so extra keys (e.g. antispam `_hp`/`_t`) never persist. */
+const LEVELS = ["explorer", "builder", "creator", "innovator", "pro"];
+
 function pickPayload(body) {
   const answers = Array.isArray(body.answers)
     ? body.answers.slice(0, 12).map((a) => ({
@@ -19,6 +21,7 @@ function pickPayload(body) {
   return {
     type: body.type,
     locale: body.locale === "ar" ? "ar" : "en",
+    level: LEVELS.includes(body.level) ? body.level : "explorer",
     parentName: body.parentName,
     email: body.email,
     phone: body.phone,
