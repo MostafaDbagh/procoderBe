@@ -60,6 +60,12 @@ router.post(
     body("ageMin").isInt({ min: 6, max: 18 }),
     body("ageMax").isInt({ min: 6, max: 18 }),
     body("level").isIn(["beginner", "intermediate", "advanced"]),
+    body("stlLevel")
+      .optional()
+      .trim()
+      .customSanitizer((v) => String(v).trim().toLowerCase())
+      .isIn(["explorer", "builder", "creator", "innovator", "pro", ""])
+      .withMessage("Unknown learning journey stage"),
     body("lessons").isInt({ min: 1 }),
     body("durationWeeks").isInt({ min: 1 }),
     body("title.en").trim().notEmpty(),
@@ -94,6 +100,12 @@ router.put(
     body("ageMin").optional().isInt({ min: 6, max: 18 }),
     body("ageMax").optional().isInt({ min: 6, max: 18 }),
     body("level").optional().isIn(["beginner", "intermediate", "advanced"]),
+    body("stlLevel")
+      .optional()
+      .trim()
+      .customSanitizer((v) => String(v).trim().toLowerCase())
+      .isIn(["explorer", "builder", "creator", "innovator", "pro", ""])
+      .withMessage("Unknown learning journey stage"),
     body("lessons").optional().isInt({ min: 1 }),
     body("durationWeeks").optional().isInt({ min: 1 }),
     body("price").optional().isFloat({ min: 0 }),
