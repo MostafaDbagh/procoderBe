@@ -119,10 +119,10 @@ const faqs = [
     order: 1,
   },
   {
-    question: { en: "Can I cancel anytime?", ar: "هل يمكنني الإلغاء في أي وقت؟" },
+    question: { en: "How are refunds processed?", ar: "كيف تُعاد المبالغ المستردة؟" },
     answer: {
-      en: "On the monthly plan, yes. Cancel before your next billing cycle and you won't be charged again. Annual plans are non-refundable after 14 days.",
-      ar: "في الخطة الشهرية، نعم. ألغِ قبل دورة الفوترة التالية ولن تُحسب عليك رسوم. الخطط السنوية غير قابلة للاسترداد بعد 14 يوماً.",
+      en: "We're here to help with your refund. Refunds are returned to the registered user's bank account within a maximum of 15 days. Please contact our team to request assistance.",
+      ar: "يسعدنا مساعدتك في استرداد المبلغ. تُعاد المبالغ المستردة إلى الحساب البنكي للمستخدم المسجّل خلال مدة أقصاها ١٥ يوماً. يُرجى التواصل مع فريقنا لطلب المساعدة.",
     },
     order: 2,
   },

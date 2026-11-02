@@ -17,7 +17,7 @@ exports.listPublished = async (req, res) => {
  BlogPost.countDocuments(filter),
  BlogPost.find(filter)
  .select("-body")
- .sort({ publishedAt: -1 })
+ .sort({ publishedAt: -1, _id: -1 })
  .skip(skip)
  .limit(limit)
  .lean(),
@@ -42,7 +42,8 @@ exports.getBySlug = async (req, res) => {
 
 exports.incrementView = async (req, res) => {
  try {
- await BlogPost.updateOne({ slug: req.params.slug }, { $inc: { viewCount: 1 } });
+ // Analytics must not change the editorial date used by sitemap and Article JSON-LD.
+ await BlogPost.updateOne({ slug: req.params.slug, isPublished: true }, { $inc: { viewCount: 1 } }, { timestamps: false });
  res.status(204).end();
  } catch {
  res.status(204).end();
