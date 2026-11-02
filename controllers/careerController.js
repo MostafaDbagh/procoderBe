@@ -14,7 +14,7 @@ exports.listActive = async (req, res) => {
     const [total, careers] = await Promise.all([
       Career.countDocuments(filter),
       Career.find(filter)
-        .sort({ createdAt: -1 })
+        .sort({ createdAt: -1, _id: -1 })
         .skip(skip)
         .limit(limit)
         .lean(),
@@ -48,7 +48,7 @@ exports.listAdmin = async (req, res) => {
     const [total, careers] = await Promise.all([
       Career.countDocuments(filter),
       Career.find(filter)
-        .sort({ createdAt: -1 })
+        .sort({ createdAt: -1, _id: -1 })
         .skip(skip)
         .limit(limit)
         .lean(),
