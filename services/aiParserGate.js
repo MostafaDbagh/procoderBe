@@ -118,7 +118,7 @@ Important: If the parent emphasizes building, robots, LEGO, engineering, circuit
 If the parent describes science fairs, investigations, hypotheses, lab work, or research projects, include interest "research" (and science_oriented or curious in adjectives when it fits). For parent_goals you may use short snake_case strings that match the parent's intent (e.g. inquiry_research for inquiry / science-fair style goals).`;
 }
 
-async function parseStructuredOpenAI(sanitized, locale, systemPrompt) {
+async function parseStructuredOpenAI(sanitized, locale, systemPrompt, signal) {
   if (!process.env.OPENAI_API_KEY) return null;
   const OpenAI = require("openai").default;
   const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -131,13 +131,13 @@ async function parseStructuredOpenAI(sanitized, locale, systemPrompt) {
       { role: "system", content: systemPrompt },
       { role: "user", content: sanitized },
     ],
-  });
+  }, { signal });
   const raw = r.choices[0]?.message?.content;
   if (!raw) return null;
   return JSON.parse(raw);
 }
 
-async function parseStructuredAnthropic(sanitized, locale, systemPrompt) {
+async function parseStructuredAnthropic(sanitized, locale, systemPrompt, signal) {
   if (!process.env.ANTHROPIC_API_KEY) return null;
   const Anthropic = require("@anthropic-ai/sdk");
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -146,7 +146,7 @@ async function parseStructuredAnthropic(sanitized, locale, systemPrompt) {
     max_tokens: 600,
     system: `${systemPrompt}\nOutput ONLY raw JSON, no other text.`,
     messages: [{ role: "user", content: sanitized }],
-  });
+  }, { signal });
   const block = r.content?.find((b) => b.type === "text");
   if (!block || block.type !== "text") return null;
   let text = block.text.trim();
@@ -156,7 +156,7 @@ async function parseStructuredAnthropic(sanitized, locale, systemPrompt) {
   return JSON.parse(text);
 }
 
-async function parseStructuredLLM(sanitized, locale) {
+async function parseStructuredLLM(sanitized, locale, signal) {
   const { adjectives, interests } = getAllowSets();
   const adjectiveList = [...adjectives];
   const interestList = [...interests];
@@ -167,10 +167,11 @@ async function parseStructuredLLM(sanitized, locale) {
     .map((s) => s.trim().toLowerCase());
 
   for (const provider of order) {
+    if (signal?.aborted) return null;
     try {
       let raw = null;
-      if (provider === "openai") raw = await parseStructuredOpenAI(sanitized, locale, systemPrompt);
-      else if (provider === "anthropic") raw = await parseStructuredAnthropic(sanitized, locale, systemPrompt);
+      if (provider === "openai") raw = await parseStructuredOpenAI(sanitized, locale, systemPrompt, signal);
+      else if (provider === "anthropic") raw = await parseStructuredAnthropic(sanitized, locale, systemPrompt, signal);
       if (raw && typeof raw === "object") {
         const norm = validateAndNormalizeProfile(raw, { adjectives, interests });
         if (norm) return norm;
@@ -185,7 +186,7 @@ async function parseStructuredLLM(sanitized, locale) {
 /**
  * @param {string} text
  * @param {string} locale
- * @param {{ useLlm?: boolean }} [options]
+ * @param {{ useLlm?: boolean, signal?: AbortSignal }} [options]
  */
 async function parseWithGate(text, locale = "en", options = {}) {
   const useLlm = options.useLlm !== false && process.env.PARSER_USE_LLM !== "0";
@@ -200,7 +201,7 @@ async function parseWithGate(text, locale = "en", options = {}) {
   const { adjectives, interests } = getAllowSets();
   let llmNorm = null;
   try {
-    const rawLlm = await parseStructuredLLM(sanitized, locale);
+    const rawLlm = await parseStructuredLLM(sanitized, locale, options.signal);
     if (rawLlm) llmNorm = validateAndNormalizeProfile(rawLlm, { adjectives, interests });
   } catch (e) {
     logger.error("[aiParserGate] LLM path failed:", e.message);

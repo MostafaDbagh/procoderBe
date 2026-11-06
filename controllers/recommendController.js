@@ -1,5 +1,8 @@
+const { nextReadinessQuestion } = require("../services/readinessQuestions");
+const { withDeadline } = require("../services/recommendationDeadline");
+const { explainAssessment } = require("../services/assessmentExplanation");
+const { validateAssessment, assessLevel, eligibleCourses } = require("../services/levelAssessment");
 const Course = require("../models/Course");
-const ensureDefaultCourses = require("../services/ensureDefaultCourses");
 const { coerceGender } = require("../config/childProfileSchema");
 const { evidenceScoringDelta, enrichProfileWithEvidenceContext } = require("../config/evidenceBasedFramework");
 const logger = require("../utils/logger");
@@ -1366,19 +1369,19 @@ function generateMessage(profile, recommendedSlugs, locale) {
 
 // ============================================================
 // OPTIONAL: AI message enhancement (uses API only for
-// making the message warmer — parsing is 100% local)
+// explaining the validated assessment and the parent’s question)
 // ============================================================
 
-async function enhanceMessageWithAI(profile, recommendedSlugs, locale, fallbackMessage) {
- // Skip remote "warm message" step for instant responses (template message only).
+async function enhanceMessageWithAI(context, fallbackMessage) {
+ // AI may classify the concern; visible advice always comes from validated templates.
  if (process.env.RECOMMEND_AI_ENHANCE === "0" || process.env.RECOMMEND_FAST === "1") {
- return fallbackMessage;
+ return explainAssessment(context, fallbackMessage);
  }
 
- const enhanceTimeoutMs = Math.max(
+ const enhanceTimeoutMs = Math.min(6000, Math.max(
  1000,
  parseInt(process.env.RECOMMEND_AI_ENHANCE_TIMEOUT_MS || "6000", 10) || 6000
- );
+ ));
 
  // Try to load AI SDKs — if not available or no keys, return fallback
  try {
@@ -1390,12 +1393,12 @@ async function enhanceMessageWithAI(profile, recommendedSlugs, locale, fallbackM
  const Anthropic = require("@anthropic-ai/sdk");
  providers.push({
  name: "Claude",
- call: async (prompt) => {
+ call: async (prompt, signal) => {
  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
  const r = await client.messages.create({
  model: "claude-haiku-4-5-20251001", max_tokens: 400,
  system: prompt.system, messages: [{ role: "user", content: prompt.user }],
- });
+ }, { signal });
  return r.content[0].type === "text" ? r.content[0].text : null;
  },
  });
@@ -1408,12 +1411,12 @@ async function enhanceMessageWithAI(profile, recommendedSlugs, locale, fallbackM
  const OpenAI = require("openai").default;
  providers.push({
  name: "OpenAI",
- call: async (prompt) => {
+ call: async (prompt, signal) => {
  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
  const r = await client.chat.completions.create({
  model: "gpt-4o-mini", max_tokens: 400,
  messages: [{ role: "system", content: prompt.system }, { role: "user", content: prompt.user }],
- });
+ }, { signal });
  return r.choices[0]?.message?.content || null;
  },
  });
@@ -1426,161 +1429,22 @@ async function enhanceMessageWithAI(profile, recommendedSlugs, locale, fallbackM
  const OpenAI = require("openai").default;
  providers.push({
  name: "DeepSeek",
- call: async (prompt) => {
+ call: async (prompt, signal) => {
  const client = new OpenAI({ apiKey: process.env.DEEPSEEK_API_KEY, baseURL: "https://api.deepseek.com" });
  const r = await client.chat.completions.create({
  model: "deepseek-chat", max_tokens: 400,
  messages: [{ role: "system", content: prompt.system }, { role: "user", content: prompt.user }],
- });
+ }, { signal });
  return r.choices[0]?.message?.content || null;
  },
  });
  } catch {}
  }
 
- if (providers.length === 0) return fallbackMessage;
-
- const lang = locale === "ar" ? "Arabic" : "English";
- const courseNames = locale === "ar" ? COURSE_NAMES_AR : COURSE_NAMES_EN;
- const names = recommendedSlugs.map((s) => courseNames[s] || s).join(", ");
-
- const prompt = {
- system: `You write warm, brief course recommendation messages for parents. Respond in ${lang}. 2-4 sentences max. Be specific about the child. Return ONLY the message text, no JSON.
-
-You MUST recommend ONLY the courses listed below by name — use those exact titles, do not add, remove, or substitute any other courses (no extra classes, apps, or tracks).`,
- user: `Child profile: age=${profile.age}, traits=[${profile.adjectives.join(",")}], interests=[${profile.interests.join(",")}], special_needs=${profile.special_needs || "none"}.
-Recommended courses (complete list — mention all of these and no others): ${names}.
-Write a warm, personalized message explaining why these courses fit this child. Reference their specific traits.`,
- };
-
- const runEnhance = async () => {
- for (const provider of providers) {
- try {
- const result = await provider.call(prompt);
- if (result && result.length > 20) return result;
- } catch (err) {
- logger.error(`[AI enhance] ${provider.name} failed:`, err.message);
+ return await explainAssessment(context, fallbackMessage, providers, enhanceTimeoutMs);
+ } catch {
+ return explainAssessment(context, fallbackMessage);
  }
- }
- return fallbackMessage;
- };
-
- const enhanced = await Promise.race([
- runEnhance(),
- new Promise((resolve) => setTimeout(() => resolve(null), enhanceTimeoutMs)),
- ]);
- if (enhanced != null) return enhanced;
- logger.warn("[AI enhance] timed out; using template message");
- } catch {}
-
- return fallbackMessage;
-}
-
-// ============================================================
-// CONFIDENCE SCORING
-// ============================================================
-
-function computeConfidence(profile) {
- let score = 0;
- if (profile.age) score += 30;
- if (profile.experience_level) score += 25;
- if (profile.interests && profile.interests.length > 0) score += 20;
- if (profile.adjectives && profile.adjectives.length > 0) score += 15;
- if (profile.parent_goals && profile.parent_goals.length > 0) score += 7;
- if (profile.learning_style) score += 3;
- return score;
-}
-
-// ============================================================
-// FOLLOW-UP QUESTIONS
-// ============================================================
-
-function generateFollowUpQuestions(profile, lang) {
- const isAr = lang === "ar";
- const questions = [];
-
- // Age and experience_level are the two most critical — ask them first
- if (!profile.age) {
-  questions.push(
-   isAr ? "كم عمر طفلك بالضبط؟" : "How old is your child exactly?"
-  );
- }
- if (!profile.experience_level) {
-  questions.push(
-   isAr
-    ? "هل سبق لطفلك تجربة أي برمجة أو تكنولوجيا من قبل؟ (مبتدئ تماماً، جرب شيئاً، أو لديه خبرة جيدة)"
-    : "Has your child tried any coding or tech before? (complete beginner, tried a little, or has solid experience)"
-  );
- }
- if (!profile.interests || profile.interests.length === 0) {
-  questions.push(
-   isAr
-    ? "ما هي اهتمامات طفلك؟ (برمجة، روبوتيات، ألعاب، رياضيات...)"
-    : "What are your child's interests? (coding, robotics, gaming, math...)"
-  );
- }
- if (!profile.adjectives || profile.adjectives.length === 0) {
-  questions.push(
-   isAr
-    ? "كيف تصف شخصية طفلك؟ (نشيط، خلاق، تحليلي، اجتماعي...)"
-    : "How would you describe your child's personality? (energetic, creative, analytical, social...)"
-  );
- }
- if (!profile.parent_goals || profile.parent_goals.length === 0) {
-  questions.push(
-   isAr
-    ? "ما هدفك من تسجيله في برنامج STEM؟"
-    : "What's your goal in enrolling them in a STEM program?"
-  );
- }
-
- return questions.slice(0, 2);
-}
-
-// ============================================================
-// LEARNING PATH GENERATION
-// ============================================================
-
-function generateLearningPath(topCourses, allCourses, profile) {
- if (topCourses.length === 0) return [];
-
- const path = [];
- const usedSlugs = new Set();
-
- if (topCourses[0]) {
-  path.push({ phase: "now", slug: topCourses[0].slug, title: topCourses[0].title });
-  usedSlugs.add(topCourses[0].slug);
- }
-
- if (topCourses[1]) {
-  path.push({ phase: "next", slug: topCourses[1].slug, title: topCourses[1].title });
-  usedSlugs.add(topCourses[1].slug);
- } else {
-  const nextCourse = allCourses.find(
-   (c) =>
-    c.isActive &&
-    !usedSlugs.has(c.slug) &&
-    (c.level === "intermediate" || (topCourses[0] && c.ageMin > topCourses[0].ageMin))
-  );
-  if (nextCourse) {
-   path.push({ phase: "next", slug: nextCourse.slug, title: nextCourse.title });
-   usedSlugs.add(nextCourse.slug);
-  }
- }
-
- if (path.length >= 1) {
-  const futureCourse = allCourses.find(
-   (c) =>
-    c.isActive &&
-    !usedSlugs.has(c.slug) &&
-    (c.level === "advanced" || (profile.age && c.ageMin > (profile.age + 1)))
-  );
-  if (futureCourse) {
-   path.push({ phase: "future", slug: futureCourse.slug, title: futureCourse.title });
-  }
- }
-
- return path;
 }
 
 // ============================================================
@@ -1588,73 +1452,135 @@ function generateLearningPath(topCourses, allCourses, profile) {
 // ============================================================
 
 exports.recommend = async (req, res) => {
- const { message, locale = "en", conversationHistory = [] } = req.body;
+ if (typeof res.set === "function") res.set("Cache-Control", "no-store");
+ const { message, locale = "en", conversationHistory = [] } = req.body || {};
+ let assessmentAnswers;
+ try { assessmentAnswers = validateAssessment(req.body?.assessment); } catch (error) {
+  return res.status(400).json({ error: error.message });
+ }
+ if (!["en", "ar"].includes(locale)) return res.status(400).json({ error: "Invalid locale" });
 
- if (!message || typeof message !== "string" || message.length > 2000) {
+ if (!message || typeof message !== "string" || !message.trim() || message.length > 2000) {
  return res.status(400).json({ error: "Invalid message. Must be a string under 2000 characters." });
  }
 
  try {
- let courses = await Course.find({ isActive: true }).lean();
- if (courses.length === 0) {
- await ensureDefaultCourses();
- courses = await Course.find({ isActive: true }).lean();
- }
- if (courses.length === 0) {
- return res.status(503).json({ error: "No courses available" });
- }
-
  // ── STEP 1: PARSE — merge conversation history for richer context ──
  const historyContext = Array.isArray(conversationHistory)
-  ? conversationHistory
-   .filter((t) => t.role === "user" && typeof t.content === "string")
-   .map((t) => t.content)
-   .join(" ")
+  ? conversationHistory.slice(-16).filter(t => t && t.role === "user" && typeof t.content === "string")
+    .slice(-8).map(t => t.content.slice(0, 2000)).join(" ")
   : "";
- const combinedInput = historyContext ? `${historyContext} ${message}` : message;
+ // Preserve the newest answer instead of truncating it off the end.
+ const combinedInput = `${historyContext} ${message}`.slice(-2000);
 
  logger.debug("[Recommend] Parsing child profile (parser gate)...");
  const { parseWithGate } = require("../services/aiParserGate");
- const profile = await parseWithGate(combinedInput.slice(0, 4000), locale);
- // Profile contains parent-supplied PII (child name, age, free-text). Debug only.
- logger.debug("[Recommend] Profile:", JSON.stringify(profile));
+ let profile;
+ profile = await withDeadline(signal => parseWithGate(combinedInput, locale, { signal }), 4000, null);
+ if (!profile) profile = parseChildProfile(combinedInput, locale);
 
- // ── STEP 2: SCORE & RANK courses ──
- const scored = scoreCourses(profile, courses);
- const parsedMax = Number.parseInt(process.env.RECOMMEND_MAX_COURSES || "2", 10);
- const maxRecommended = Math.min(10, Math.max(1, Number.isFinite(parsedMax) ? parsedMax : 2));
- const sorted = [...scored].sort((a, b) => b.score - a.score);
- // Prefer positive-scored courses; if none exist, fall back to top-ranked regardless
- let topCourses = sorted.filter((s) => s.score > 0).slice(0, maxRecommended);
- if (topCourses.length === 0) topCourses = sorted.slice(0, maxRecommended);
- const topCourseObjects = topCourses.map((s) => courses.find((c) => c.slug === s.slug)).filter(Boolean);
- const recommendedSlugs = topCourses.map((s) => s.slug);
 
- logger.debug("[Recommend] Scores:", topCourses.map((s) => `${s.slug}(${s.score})`).join(", "));
-
- // ── STEP 3: GENERATE MESSAGE ──
- const templateMessage = generateMessage(profile, recommendedSlugs, locale);
-
- // Try AI enhancement (optional, non-blocking fallback)
- let finalMessage = templateMessage;
- try {
- finalMessage = await enhanceMessageWithAI(profile, recommendedSlugs, locale, templateMessage);
- } catch {
- // AI enhancement failed, use template message — totally fine
+ // Reuse an explicitly stated age from the latest parent turn (never an LLM guess).
+ const currentReport = parseChildProfile(message, locale);
+ if (assessmentAnswers.age === undefined) {
+  const parentTurns = Array.isArray(conversationHistory)
+   ? conversationHistory.slice(-16).filter(turn => turn?.role === "user" && typeof turn.content === "string").map(turn => turn.content.slice(0, 2000))
+   : [];
+  for (const text of [message, ...parentTurns.reverse()]) {
+   const statedAge = parseChildProfile(text, locale).age;
+   if (Number.isInteger(statedAge) && statedAge >= 3 && statedAge <= 20) {
+    assessmentAnswers.age = statedAge;
+    break;
+   }
+  }
  }
-
- // ── STEP 4: ENRICH RESPONSE ──
- const confidence = computeConfidence(profile);
- const followUpQuestions = confidence < 90 ? generateFollowUpQuestions(profile, locale) : [];
- const learningPath = generateLearningPath(topCourseObjects, courses, profile);
+ if (assessmentAnswers.experience === undefined && currentReport.experience_level === "none") {
+  assessmentAnswers.experience = "none";
+ }
+ // Confirmed structured answers take precedence over inferred text.
+ if (assessmentAnswers.age !== undefined) profile.age = assessmentAnswers.age;
+ if (assessmentAnswers.experience) profile.experience_level = assessmentAnswers.experience === "unsure" ? null : assessmentAnswers.experience;
+ let assessment = assessLevel(assessmentAnswers, profile, locale);
+ if (assessmentAnswers.age !== undefined && currentReport.age && currentReport.age !== assessmentAnswers.age) {
+  assessment = { ...assessment, status: "needs_information", suggestedLevel: null, reasons: [], considerations: [],
+   missingFields: ["age"],
+   nextStep: locale === "ar"
+    ? `ذكرت الرسالة الأخيرة عمراً مختلفاً (${currentReport.age}) عن الإجابة السابقة (${assessmentAnswers.age}). وضّح العمر الصحيح في رسالتك التالية.`
+    : `Your latest message mentions age ${currentReport.age}, but your earlier answer says ${assessmentAnswers.age}. Confirm the child's age in your next message.`,
+  };
+ }
+ if (assessmentAnswers.experience && assessmentAnswers.experience !== "unsure" &&
+     currentReport.experience_level && currentReport.experience_level !== assessmentAnswers.experience) {
+  assessment = { ...assessment, status: "needs_information", suggestedLevel: null, reasons: [], considerations: [],
+   missingFields: [...new Set([...assessment.missingFields, "experience"])],
+   nextStep: locale === "ar"
+    ? "تختلف الخبرة المذكورة في الرسالة الأخيرة عن الإجابة السابقة. وضّح العمر والخبرة الصحيحين في رسالتك التالية."
+    : "Your latest message describes different experience from your earlier answer. Tell us the correct age and experience in your next message.",
+  };
+ }
+ if (/\b(?:my children|two children|two kids|twins|both children)\b|طفلين|طفلاي|أطفالي|اطفالي|توأم|توام/i.test(message)) {
+  assessment = { ...assessment, status: "needs_information", suggestedLevel: null, reasons: [], considerations: [],
+   missingFields: ["age", "experience", "readiness", "support"],
+   nextStep: locale === "ar"
+    ? "لنراجع طفلاً واحداً في كل مرة. حدّد الطفل المقصود وأجب عنه فقط، ثم ابدأ محادثة جديدة للطفل الآخر."
+    : "Let’s consider one child at a time. Identify which child you mean and answer for that child only, then start a new conversation for the other child.",
+  };
+ }
+ let courses = [];
+ let catalogUnavailable = false;
+ if (assessment.status === "provisional") {
+  const catalog = await withDeadline(
+   () => Course.find({ isActive: true }, null, { maxTimeMS: 2500 }).lean(), 3000, null,
+  );
+  if (Array.isArray(catalog)) courses = catalog;
+  else catalogUnavailable = true;
+ }
+ const eligible = eligibleCourses(courses, assessment, assessmentAnswers);
+ // Personality, gender and health disclosures must not determine placement.
+ const rankingProfile = { ...profile, adjectives: [], special_needs: null, gender: null,
+  learning_style: null, energy_level: null, social_preference: null, motivation_type: null };
+ const scored = scoreCourses(rankingProfile, eligible).sort((a, b) => b.score - a.score);
+ const recommendedSlugs = scored.filter(c => c.score > 0).slice(0, 2).map(c => c.slug);
+ const recommendedCourses = recommendedSlugs.map(slug => eligible.find(course => course.slug === slug));
+ const isAr = locale === "ar";
+ const followUpQuestions = [];
+ if (!profile.interests?.length) followUpQuestions.push(isAr ? "ما النشاط الذي يستمتع به طفلك ويرغب في صنعه؟" : "What does your child enjoy and want to make?");
+ if (!profile.parent_goals?.length) followUpQuestions.push(isAr ? "ما التغيير الذي تأمل أن تراه في طريقة تفكير طفلك أو تعلّمه؟" : "What change would you like to see in how your child thinks or learns?");
+ if (assessment.status === "review_required") followUpQuestions.unshift(isAr ? "صف مثالاً حديثاً لما صنعه طفلك بنفسه وما احتاج فيه إلى مساعدة." : "Describe something your child recently made and where they needed help.");
+ const nextQuestion = nextReadinessQuestion(assessment, locale);
+ if (nextQuestion && !assessment.missingFields.some(field => assessmentAnswers[field] !== undefined) && assessment.considerations.length === 0 && !/different|تختلف|مختلف|one child|طفلاً واحداً/.test(assessment.nextStep)) {
+  assessment.nextStep = nextQuestion.prompt;
+ }
+ const templateMessage = assessment.suggestedLevel
+  ? (isAr ? `المستوى المقترح مبدئياً هو ${assessment.suggestedLevel === "pro" ? "Pro" : assessment.suggestedLevel[0].toUpperCase() + assessment.suggestedLevel.slice(1)}. ` : `The provisional suggested level is ${assessment.suggestedLevel === "pro" ? "Pro" : assessment.suggestedLevel[0].toUpperCase() + assessment.suggestedLevel.slice(1)}. `) + assessment.nextStep
+  : (nextQuestion && assessment.nextStep === nextQuestion.prompt
+   ? (assessmentAnswers.age !== undefined
+    ? (isAr ? `تم تسجيل العمر: ${assessmentAnswers.age} سنة. لنكمل خطوة بخطوة.` : `I have their age as ${assessmentAnswers.age}. Let’s take the next step together.`)
+    : (isAr ? "لنبدأ بما تعرفه عن طفلك." : "Let’s start with what you know about your child."))
+   : assessment.nextStep);
+ const finalMessage = await enhanceMessageWithAI({
+  parentMessage: message, profile, answers: assessmentAnswers, assessment,
+  courses: recommendedCourses, locale,
+ }, templateMessage);
+ const courseAvailability = assessment.status !== "provisional" ? "pending_assessment"
+  : catalogUnavailable ? "unavailable" : recommendedSlugs.length ? "available" : "no_match";
 
  return res.json({
  ids: recommendedSlugs,
+ courses: recommendedCourses.map(({ _id, slug, category, ageMin, ageMax, level, stlLevel, lessons, durationWeeks, iconName, color, imageUrl, title, description, skills, price, currency, discountPercent, nextSessionDate }) => ({
+  _id, slug, category, ageMin, ageMax, level, stlLevel, lessons, durationWeeks, iconName, color, imageUrl, title, description, skills, price, currency, discountPercent, nextSessionDate,
+ })),
  message: finalMessage,
- profile,
- confidence,
- followUpQuestions,
- learningPath,
+ profile: {
+  age: profile.age, experience_level: profile.experience_level,
+  interests: profile.interests || [], parent_goals: profile.parent_goals || [],
+  gender: null, adjectives: [], special_needs: null, learning_style: null, energy_level: null,
+ },
+ followUpQuestions: nextQuestion ? [] : followUpQuestions,
+ nextQuestion,
+ assessmentAnswers,
+ assessment,
+ courseAvailability,
  });
  } catch (error) {
  logger.error("[Recommend] Error:", error);

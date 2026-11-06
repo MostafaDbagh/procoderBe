@@ -18,7 +18,9 @@
     "seed:instructor": "node scripts/seed-instructor.js",
     "seed:instructor:mock": "MOCK_INSTRUCTOR=1 node scripts/seed-instructor.js",
     "seed:pricing": "node scripts/seed-pricing.js",
-    "db:reset": "node scripts/reset-db.js"
+    "db:reset": "node scripts/reset-db.js",
+    "test:recommendation": "node --test test/level-assessment.test.js test/assessment-explanation.test.js test/recommendation-deadline.test.js test/recommend-robot-prompt.test.js test/parser-interests-accuracy.test.js",
+    "test:recommendation:http": "node --test test/recommend-http.integration.test.js"
   },
   "keywords": [],
   "author": "",
