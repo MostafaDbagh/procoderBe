@@ -653,6 +653,17 @@ Our Mobile App Development course is designed for kids ages 10-16 with basic cod
   },
 ];
 
+// Keep legacy seed content aligned with reviewed corrections without replacing newer prose.
+const editorialPatches = require("./seo-editorial-patches-2026-11-06.json");
+for (const patch of editorialPatches) {
+ const post = BLOGS.find(item => item.slug === patch.slug);
+ if (!post) continue;
+ for (const [field, change] of Object.entries(patch.fields)) {
+  const [group, locale] = field.split(".");
+  if (post[group]?.[locale] === change.before) post[group][locale] = change.after;
+ }
+}
+
 // Calculate read time from English body
 for (const b of BLOGS) {
   const words = b.body.en.split(/\s+/).length;

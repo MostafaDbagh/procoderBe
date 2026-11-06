@@ -52,7 +52,7 @@ const courseSchema = new mongoose.Schema(
       ar: [String],
     },
     price: { type: Number, default: 0 },
-    currency: { type: String, default: "USD" },
+    currency: { type: String, enum: ["USD"], default: "USD" },
     /** 0 = none. 1–100 = percent off `price` for display, enrollments, and quotes. */
     discountPercent: { type: Number, default: 0, min: 0, max: 100 },
     isActive: { type: Boolean, default: true },

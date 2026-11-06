@@ -1,3 +1,6 @@
 node_modules
 .env
 uploads/
+
+# Local editorial rollback snapshots
+scripts/seo-editorial-backup-*.json
