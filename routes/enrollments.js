@@ -1,3 +1,4 @@
+const { normalizePhoneInput, isValidPublicPhone } = require("../utils/phoneValidation");
 const express = require("express");
 const { body, param } = require("express-validator");
 const validate = require("../middleware/validate");
@@ -16,7 +17,7 @@ router.post(
   validate([
     body("parentName").trim().notEmpty().isLength({ max: 100 }),
     body("email").isEmail(),
-    body("phone").trim().notEmpty().matches(/^\+?[\d\s()-]{8,20}$/).withMessage("Invalid phone number format"),
+    body("phone").trim().notEmpty().customSanitizer(normalizePhoneInput).custom(isValidPublicPhone).withMessage("Invalid phone number format"),
     body("relationship").trim().notEmpty().isLength({ max: 50 }),
     body("childName").trim().notEmpty().isLength({ max: 100 }),
     body("childAge").isInt({ min: 6, max: 18 }),

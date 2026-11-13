@@ -1,3 +1,4 @@
+const { normalizePhoneInput } = require("./phoneValidation");
 const Enrollment = require("../models/Enrollment");
 
 function normalizeEmail(email) {
@@ -15,7 +16,7 @@ function normalizeParentName(name) {
 
 /** Digits only — compares enrollment phone to signup phone regardless of spaces/plus. */
 function normalizePhone(phone) {
-  return String(phone || "").replace(/\D/g, "");
+  return normalizePhoneInput(String(phone || "")).replace(/^00/, "").replace(/\D/g, "");
 }
 
 function childDedupeKey(row) {
@@ -38,7 +39,7 @@ function filterMergedRowsForParentSignup(mergedRows, email, parentName, phone) {
   const target = normalizeParentName(parentName);
   const p = normalizePhone(phone);
   if (!target) return [];
-  if (!e && p.length < 8) return [];
+  if (!e && p.length < 7) return [];
 
   const out = [];
   for (const row of mergedRows) {
@@ -46,7 +47,7 @@ function filterMergedRowsForParentSignup(mergedRows, email, parentName, phone) {
     const rowE = normalizeEmail(row.email);
     const rowP = normalizePhone(row.phone);
     const emailOk = Boolean(e) && rowE === e;
-    const phoneOk = p.length >= 8 && rowP === p;
+    const phoneOk = p.length >= 7 && rowP === p;
     if (emailOk || phoneOk) out.push(row);
   }
   return out;
@@ -61,7 +62,7 @@ async function findMatchingEnrollmentsForParentSignup(email, parentName, phone) 
   const target = normalizeParentName(parentName);
   const p = normalizePhone(phone);
   if (!target) return [];
-  if (!e && p.length < 8) return [];
+  if (!e && p.length < 7) return [];
 
   const byId = new Map();
 
@@ -75,7 +76,7 @@ async function findMatchingEnrollmentsForParentSignup(email, parentName, phone) 
     for (const row of rows) byId.set(String(row._id), row);
   }
 
-  if (p.length >= 8) {
+  if (p.length >= 7) {
     const rows = await Enrollment.find({
       status: { $ne: "cancelled" },
       phone: { $nin: [null, ""] },

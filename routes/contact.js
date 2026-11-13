@@ -1,3 +1,4 @@
+const { normalizePhoneInput, isValidPublicPhone } = require("../utils/phoneValidation");
 const express = require("express");
 const { body } = require("express-validator");
 const validate = require("../middleware/validate");
@@ -16,6 +17,7 @@ router.post(
   validate([
     body("name").trim().notEmpty().withMessage("Name is required").isLength({ max: 100 }).withMessage("Name too long"),
     body("email").isEmail().withMessage("Valid email is required"),
+    body("phone").optional({ checkFalsy: true }).customSanitizer(normalizePhoneInput).custom(isValidPublicPhone).withMessage("Invalid phone number format"),
     body("subject").trim().notEmpty().withMessage("Subject is required").isLength({ max: 200 }).withMessage("Subject too long"),
     body("message").trim().notEmpty().withMessage("Message is required").isLength({ max: 5000 }).withMessage("Message too long (max 5000 characters)"),
   ]),

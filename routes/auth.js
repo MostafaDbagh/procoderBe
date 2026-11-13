@@ -1,3 +1,4 @@
+const { normalizePhoneInput, isValidPublicPhone } = require("../utils/phoneValidation");
 const express = require("express");
 const { body } = require("express-validator");
 const rateLimit = require("express-rate-limit");
@@ -31,12 +32,12 @@ router.post(
       .optional({ checkFalsy: true })
       .isEmail()
       .withMessage("Valid email is required"),
-    body("phone").optional({ checkFalsy: true }).trim().matches(/^\+?[\d\s()-]{8,20}$/).withMessage("Invalid phone number format"),
+    body("phone").optional({ checkFalsy: true }).trim().customSanitizer(normalizePhoneInput).custom(isValidPublicPhone).withMessage("Invalid phone number format"),
     body().custom((_, { req }) => {
       const email = String(req.body.email || "").trim();
       const phoneDigits = String(req.body.phone || "").replace(/\D/g, "");
-      if (!email && phoneDigits.length < 8) {
-        throw new Error("Valid email or phone (8+ digits) required");
+      if (!email && phoneDigits.length < 7) {
+        throw new Error("Valid email or phone (7+ digits) required");
       }
       if (
         email &&
@@ -56,6 +57,7 @@ router.post(
   validate([
     body("name").trim().notEmpty().withMessage("Name is required"),
     body("email").isEmail().withMessage("Valid email is required"),
+    body("phone").optional({ checkFalsy: true }).customSanitizer(normalizePhoneInput).custom(isValidPublicPhone).withMessage("Invalid phone number format"),
     body("password")
       .isLength({ min: 8 })
       .withMessage("Password must be at least 8 characters")

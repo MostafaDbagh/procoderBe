@@ -1,3 +1,4 @@
+const { normalizePhoneInput, isValidPublicPhone } = require("../utils/phoneValidation");
 const express = require("express");
 const { body, param, query } = require("express-validator");
 const auth = require("../middleware/auth");
@@ -70,7 +71,7 @@ router.patch(
       .isIn(["parent", "student", "instructor", "admin"]),
     body("isActive").optional().isBoolean(),
     body("name").optional().trim().notEmpty().isLength({ max: 100 }),
-    body("phone").optional().trim().matches(/^\+?[\d\s()-]{8,20}$/).withMessage("Invalid phone number format"),
+    body("phone").optional().trim().customSanitizer(normalizePhoneInput).custom(isValidPublicPhone).withMessage("Invalid phone number format"),
     body("specialties").optional().isArray({ max: 20 }),
     body("bio").optional().trim().isLength({ max: 2000 }).withMessage("Bio too long (max 2000 characters)"),
     body("assignedCourses").optional().isArray(),
@@ -105,7 +106,7 @@ router.post(
   validate([
     body("name").trim().notEmpty(),
     body("email").isEmail(),
-    body("phone").optional().trim(),
+    body("phone").optional({ checkFalsy: true }).trim().customSanitizer(normalizePhoneInput).custom(isValidPublicPhone).withMessage("Invalid phone number format"),
     body("password")
       .optional({ values: "falsy" })
       .trim()

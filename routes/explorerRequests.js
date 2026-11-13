@@ -1,3 +1,4 @@
+const { normalizePhoneInput, isValidPublicPhone } = require("../utils/phoneValidation");
 const express = require("express");
 const { body, param } = require("express-validator");
 const validate = require("../middleware/validate");
@@ -29,6 +30,7 @@ router.post(
       .withMessage("Parent name too long"),
     body("email").isEmail().withMessage("Valid email is required"),
     body("phone").optional().trim().isLength({ max: 30 }),
+    body("phone").if(body("type").equals("registration")).customSanitizer(normalizePhoneInput).custom(isValidPublicPhone).withMessage("Invalid phone number format"),
     body("childName").optional().trim().isLength({ max: 100 }),
     body("childAge").optional().trim().isLength({ max: 10 }),
     body("childLanguage").optional().isIn(["ar", "en", "both", ""]),

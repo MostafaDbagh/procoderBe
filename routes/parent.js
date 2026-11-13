@@ -1,3 +1,4 @@
+const { normalizePhoneInput, isValidPublicPhone } = require("../utils/phoneValidation");
 const express = require("express");
 const { body } = require("express-validator");
 const validate = require("../middleware/validate");
@@ -21,7 +22,7 @@ router.put(
   "/profile",
   validate([
     body("name").optional().trim().notEmpty().isLength({ max: 100 }).withMessage("Name too long"),
-    body("phone").optional().trim().notEmpty().matches(/^\+?[\d\s()-]{8,20}$/).withMessage("Invalid phone number format"),
+    body("phone").optional().trim().notEmpty().customSanitizer(normalizePhoneInput).custom(isValidPublicPhone).withMessage("Invalid phone number format"),
   ]),
   parentController.updateProfile
 );
